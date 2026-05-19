@@ -243,6 +243,8 @@ function refreshBaseSelects() {
   document.getElementById('filter-base').innerHTML = fOpts;
 }
 
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
 function renderBases() {
   const el = document.getElementById('base-list');
   if(!bases.length) { el.innerHTML = '<span style="color:#a0aec0;font-size:.85rem;">拠点が登録されていません</span>'; return; }
