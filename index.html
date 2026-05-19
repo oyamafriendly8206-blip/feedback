@@ -39,18 +39,23 @@
   .fb-card-body { padding: 12px 14px; }
   .fb-base { display: inline-block; background: #2b6cb0; color: white; border-radius: 4px; font-size: 0.75rem; padding: 2px 8px; margin-bottom: 8px; }
   .fb-content { font-size: 0.9rem; color: #2d3748; line-height: 1.5; margin-bottom: 10px; white-space: pre-wrap; }
-  .fb-img { width: 100%; border-radius: 6px; max-height: 200px; object-fit: cover; cursor: pointer; }
+  .fb-img { width: calc(50% - 3px); border-radius: 6px; max-height: 140px; object-fit: cover; cursor: pointer; }
   .fb-actions { display: flex; gap: 6px; margin-top: 10px; }
-  .base-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .base-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
   .base-tag { display: flex; align-items: center; gap: 6px; background: #ebf4ff; border-radius: 20px; padding: 4px 12px; font-size: 0.85rem; }
   .base-tag span { color: #2b6cb0; font-weight: 600; }
-  .add-base-row { display: flex; gap: 8px; margin-top: 10px; }
+  .add-base-row { display: flex; gap: 8px; }
   .empty { text-align: center; color: #a0aec0; padding: 40px; font-size: 0.95rem; }
   .img-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.8); z-index: 1000; align-items: center; justify-content: center; }
   .img-modal.open { display: flex; }
   .img-modal img { max-width: 90vw; max-height: 90vh; border-radius: 8px; }
   .img-modal-close { position: absolute; top: 16px; right: 24px; color: white; font-size: 2rem; cursor: pointer; font-weight: bold; }
   .count-badge { background: #e2e8f0; border-radius: 20px; padding: 2px 10px; font-size: 0.8rem; color: #4a5568; }
+  .loading { text-align: center; color: #718096; padding: 40px; }
+  .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid #cbd5e0; border-top-color: #2b6cb0; border-radius: 50%; animation: spin .7s linear infinite; margin-bottom: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .toast { position: fixed; bottom: 24px; right: 24px; background: #2d3748; color: white; padding: 10px 20px; border-radius: 8px; font-size: 0.9rem; opacity: 0; transition: opacity .3s; z-index: 2000; }
+  .toast.show { opacity: 1; }
   @media(max-width:600px) { .form-grid { grid-template-columns: 1fr; } .filter-row { flex-direction: column; } }
 </style>
 </head>
@@ -68,16 +73,14 @@
     <button class="tab" onclick="showTab('settings')">⚙️ 拠点設定</button>
   </div>
 
-  <!-- 一覧タブ -->
+  <!-- 一覧 -->
   <div id="tab-list">
     <div class="card">
       <h2>🔍 絞り込み</h2>
       <div class="filter-row">
         <div class="form-group">
           <label>拠点</label>
-          <select id="filter-base" onchange="renderList()">
-            <option value="">すべて</option>
-          </select>
+          <select id="filter-base" onchange="renderList()"><option value="">すべて</option></select>
         </div>
         <div class="form-group">
           <label>日付（から）</label>
@@ -92,15 +95,18 @@
           <input type="text" id="filter-keyword" placeholder="キーワード" oninput="renderList()">
         </div>
         <button class="btn btn-sm" style="background:#e2e8f0;color:#4a5568;align-self:flex-end;" onclick="clearFilters()">クリア</button>
+        <button class="btn btn-sm btn-primary" style="align-self:flex-end;" onclick="loadAll()">🔄 更新</button>
       </div>
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
       <span id="result-count" class="count-badge"></span>
     </div>
-    <div id="feedback-list" class="feedback-grid"></div>
+    <div id="feedback-list" class="feedback-grid">
+      <div class="loading"><div class="spinner"></div><br>読み込み中...</div>
+    </div>
   </div>
 
-  <!-- 入力タブ -->
+  <!-- 入力 -->
   <div id="tab-input" style="display:none">
     <div class="card">
       <h2>➕ フィードバック入力</h2>
@@ -121,13 +127,13 @@
           <label>対応者</label>
           <input type="text" id="in-person" placeholder="例: 田中 太郎">
         </div>
-        <div class="form-group">
-          <label>画像（複数選択可）</label>
-          <input type="file" id="in-img" accept="image/*" multiple onchange="previewImgs(this)">
-        </div>
         <div class="form-group full">
           <label>内容 *</label>
           <textarea id="in-content" placeholder="フィードバックの内容を入力してください"></textarea>
+        </div>
+        <div class="form-group full">
+          <label>画像（複数選択可）</label>
+          <input type="file" id="in-img" accept="image/*" multiple onchange="previewImgs(this)">
         </div>
         <div class="form-group full" id="img-preview-wrap" style="display:none">
           <label>画像プレビュー</label>
@@ -135,13 +141,13 @@
         </div>
       </div>
       <div style="margin-top:16px;display:flex;gap:8px;">
-        <button class="btn btn-primary" onclick="saveFeedback()">💾 保存</button>
+        <button class="btn btn-primary" id="save-btn" onclick="saveFeedback()">💾 保存</button>
         <button class="btn" style="background:#e2e8f0;color:#4a5568;" onclick="resetForm()">リセット</button>
       </div>
     </div>
   </div>
 
-  <!-- 拠点設定タブ -->
+  <!-- 拠点設定 -->
   <div id="tab-settings" style="display:none">
     <div class="card">
       <h2>⚙️ 拠点の管理</h2>
@@ -154,105 +160,244 @@
   </div>
 </div>
 
-<!-- 画像モーダル -->
 <div class="img-modal" id="img-modal" onclick="closeModal()">
   <span class="img-modal-close">✕</span>
   <img id="modal-img" src="" alt="">
 </div>
+<div class="toast" id="toast"></div>
 
 <script>
-let data = JSON.parse(localStorage.getItem('fb_data') || '{"bases":["本社","東京支店","大阪支店"],"feedbacks":[]}');
+const SB_URL = 'https://kcahlszfdjwhkflspycq.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjYWhsc3pmZGp3aGtmbHNweWNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNTYxMTgsImV4cCI6MjA5NDczMjExOH0.sSBc8zUjp-lGQ_i7JucKV9dQwr7_Lwz-XMBFWmdKW-Y';
+const HEADERS = { 'Content-Type': 'application/json', 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY };
 
-function save() { localStorage.setItem('fb_data', JSON.stringify(data)); }
+let feedbacks = [], bases = [], editId = null;
+window._pendingImgs = [];
 
-function showTab(t) {
-  ['list','input','settings'].forEach(id => {
-    document.getElementById('tab-'+id).style.display = id===t ? '' : 'none';
+function toast(msg, d=2500) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), d);
+}
+
+async function sbGet(table, params='') {
+  const res = await fetch(`${SB_URL}/rest/v1/${table}?${params}`, { headers: { ...HEADERS, 'Prefer': 'return=representation' } });
+  return res.json();
+}
+
+async function sbPost(table, body) {
+  const res = await fetch(`${SB_URL}/rest/v1/${table}`, {
+    method: 'POST',
+    headers: { ...HEADERS, 'Prefer': 'return=representation' },
+    body: JSON.stringify(body)
   });
-  document.querySelectorAll('.tab').forEach((el,i) => {
-    el.classList.toggle('active', ['list','input','settings'][i]===t);
+  return res.json();
+}
+
+async function sbPatch(table, id, body) {
+  const res = await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`, {
+    method: 'PATCH',
+    headers: { ...HEADERS, 'Prefer': 'return=representation' },
+    body: JSON.stringify(body)
   });
-  if(t==='list') renderList();
-  if(t==='input'||t==='list') refreshBaseSelects();
-  if(t==='settings') renderBases();
+  return res.json();
+}
+
+async function sbDelete(table, id) {
+  await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`, { method: 'DELETE', headers: HEADERS });
+}
+
+async function uploadImage(base64, filename) {
+  const decoded = await fetch(base64).then(r => r.blob());
+  const path = `${Date.now()}_${filename}`;
+  const res = await fetch(`${SB_URL}/storage/v1/object/feedback-images/${path}`, {
+    method: 'POST',
+    headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': decoded.type },
+    body: decoded
+  });
+  if(!res.ok) throw new Error('画像アップロード失敗');
+  return `${SB_URL}/storage/v1/object/public/feedback-images/${path}`;
+}
+
+async function loadAll() {
+  document.getElementById('feedback-list').innerHTML = '<div class="loading"><div class="spinner"></div><br>読み込み中...</div>';
+  try {
+    const [fbData, baseData] = await Promise.all([
+      sbGet('feedbacks', 'order=date.desc'),
+      sbGet('bases', 'order=id.asc')
+    ]);
+    feedbacks = (fbData || []).map(f => ({ ...f, imgs: f.imgs ? JSON.parse(f.imgs) : [] }));
+    bases = (baseData || []).map(b => b.name);
+    refreshBaseSelects();
+    renderList();
+  } catch(e) {
+    document.getElementById('feedback-list').innerHTML = '<div class="empty">⚠️ データの読み込みに失敗しました。</div>';
+  }
 }
 
 function refreshBaseSelects() {
-  const opts = '<option value="">選択してください</option>' + data.bases.map(b=>`<option value="${b}">${b}</option>`).join('');
+  const opts = '<option value="">選択してください</option>' + bases.map(b => `<option value="${b}">${b}</option>`).join('');
   document.getElementById('in-base').innerHTML = opts;
-  const fOpts = '<option value="">すべて</option>' + data.bases.map(b=>`<option value="${b}">${b}</option>`).join('');
+  const fOpts = '<option value="">すべて</option>' + bases.map(b => `<option value="${b}">${b}</option>`).join('');
   document.getElementById('filter-base').innerHTML = fOpts;
 }
 
 function renderBases() {
   const el = document.getElementById('base-list');
-  if(!data.bases.length) { el.innerHTML = '<span style="color:#a0aec0;font-size:.85rem;">拠点が登録されていません</span>'; return; }
-  el.innerHTML = data.bases.map((b,i) => `
+  if(!bases.length) { el.innerHTML = '<span style="color:#a0aec0;font-size:.85rem;">拠点が登録されていません</span>'; return; }
+  el.innerHTML = bases.map((b, i) => `
     <div class="base-tag">
-      <span>${b}</span>
+      <span>${esc(b)}</span>
       <button class="btn btn-danger" style="padding:2px 8px;font-size:.75rem;" onclick="removeBase(${i})">削除</button>
     </div>`).join('');
 }
 
-function addBase() {
+async function addBase() {
   const v = document.getElementById('new-base-name').value.trim();
   if(!v) return alert('拠点名を入力してください');
-  if(data.bases.includes(v)) return alert('同じ名前の拠点がすでに存在します');
-  data.bases.push(v);
-  save();
+  if(bases.includes(v)) return alert('同じ名前の拠点がすでに存在します');
+  await sbPost('bases', { name: v });
+  bases.push(v);
   document.getElementById('new-base-name').value = '';
-  renderBases();
+  renderBases(); refreshBaseSelects();
+  toast('拠点を追加しました');
 }
 
-function removeBase(i) {
-  if(!confirm(`「${data.bases[i]}」を削除しますか？\n（この拠点に紐づくフィードバックは残ります）`)) return;
-  data.bases.splice(i,1);
-  save();
-  renderBases();
+async function removeBase(i) {
+  if(!confirm(`「${bases[i]}」を削除しますか？`)) return;
+  const baseData = await sbGet('bases', `name=eq.${encodeURIComponent(bases[i])}`);
+  if(baseData && baseData[0]) await sbDelete('bases', baseData[0].id);
+  bases.splice(i, 1);
+  renderBases(); refreshBaseSelects();
+  toast('拠点を削除しました');
 }
 
-let editId = null;
+function renderList() {
+  const base = document.getElementById('filter-base').value;
+  const from = document.getElementById('filter-from').value;
+  const to = document.getElementById('filter-to').value;
+  const kw = document.getElementById('filter-keyword').value.toLowerCase();
+  let list = feedbacks.filter(f => {
+    if(base && f.base !== base) return false;
+    if(from && f.date < from) return false;
+    if(to && f.date > to) return false;
+    if(kw && !(f.num.toLowerCase().includes(kw) || f.content.toLowerCase().includes(kw))) return false;
+    return true;
+  }).sort((a, b) => b.date.localeCompare(a.date));
+  document.getElementById('result-count').textContent = `${list.length} 件`;
+  const el = document.getElementById('feedback-list');
+  if(!list.length) { el.innerHTML = '<div class="empty">📭 該当するフィードバックがありません</div>'; return; }
+  el.innerHTML = list.map(f => `
+    <div class="fb-card">
+      <div class="fb-card-header">
+        <span class="fb-num"># ${esc(f.num)}</span>
+        <span class="fb-date">${f.date}</span>
+      </div>
+      <div class="fb-card-body">
+        <span class="fb-base">${esc(f.base)}</span>
+        ${f.person ? `<span style="display:inline-block;background:#e9d8fd;color:#553c9a;border-radius:4px;font-size:.75rem;padding:2px 8px;margin-left:4px;margin-bottom:8px;">👤 ${esc(f.person)}</span>` : ''}
+        <div class="fb-content">${esc(f.content)}</div>
+        ${f.imgs && f.imgs.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">${f.imgs.map((img, i) => `<img class="fb-img" src="${img}" alt="画像${i+1}" onclick="openModal('${f.id}',${i})">`).join('')}</div>` : ''}
+        <div class="fb-actions">
+          <button class="btn btn-sm" style="background:#ecc94b;color:#744210;" onclick="editFeedback('${f.id}')">✏️ 編集</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteFeedback('${f.id}')">🗑️ 削除</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
 
-function saveFeedback() {
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+async function saveFeedback() {
   const num = document.getElementById('in-num').value.trim();
   const date = document.getElementById('in-date').value;
   const base = document.getElementById('in-base').value;
   const content = document.getElementById('in-content').value.trim();
   if(!num||!date||!base||!content) return alert('番号・日付・拠点・内容は必須です');
-  const imgData = person = document.getElementById('in-person').value.trim();
-  // collect images
-  const imgList = window._pendingImgs || [];
-  const person2 = document.getElementById('in-person').value.trim();
-  if(editId !== null) {
-    const idx = data.feedbacks.findIndex(f=>f.id===editId);
-    if(idx>-1) { data.feedbacks[idx] = {...data.feedbacks[idx], num, date, base, content, imgs: imgList, person: person2}; }
-    editId = null;
-  } else {
-    data.feedbacks.push({ id: Date.now(), num, date, base, content, imgs: imgList, person: person2 });
+  const person = document.getElementById('in-person').value.trim();
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  try {
+    // 画像アップロード
+    const imgUrls = [];
+    for(let i = 0; i < window._pendingImgs.length; i++) {
+      const src = window._pendingImgs[i];
+      if(src.startsWith('http')) { imgUrls.push(src); continue; }
+      btn.textContent = `画像アップロード中... (${i+1}/${window._pendingImgs.length})`;
+      const url = await uploadImage(src, `img${i}.jpg`);
+      imgUrls.push(url);
+    }
+    btn.textContent = '保存中...';
+    const payload = { num, date, base, person, content, imgs: JSON.stringify(imgUrls) };
+    if(editId !== null) {
+      await sbPatch('feedbacks', editId, payload);
+      const idx = feedbacks.findIndex(f => String(f.id) === String(editId));
+      if(idx > -1) feedbacks[idx] = { ...feedbacks[idx], ...payload, imgs: imgUrls };
+    } else {
+      const id = Date.now();
+      await sbPost('feedbacks', { id, ...payload });
+      feedbacks.unshift({ id, ...payload, imgs: imgUrls });
+    }
+    resetForm();
+    toast('✅ 保存しました！');
+    showTab('list');
+  } catch(e) {
+    alert('保存に失敗しました。\n' + e.message);
+  } finally {
+    btn.textContent = '💾 保存'; btn.disabled = false;
   }
-  save();
-  resetForm();
-  alert('保存しました！');
-  showTab('list');
+}
+
+async function deleteFeedback(id) {
+  if(!confirm('このフィードバックを削除しますか？')) return;
+  await sbDelete('feedbacks', id);
+  feedbacks = feedbacks.filter(f => String(f.id) !== String(id));
+  renderList();
+  toast('🗑️ 削除しました');
+}
+
+function editFeedback(id) {
+  const f = feedbacks.find(f => String(f.id) === String(id));
+  if(!f) return;
+  showTab('input');
+  setTimeout(() => {
+    document.getElementById('in-num').value = f.num;
+    document.getElementById('in-date').value = f.date;
+    document.getElementById('in-base').value = f.base;
+    document.getElementById('in-content').value = f.content;
+    document.getElementById('in-person').value = f.person || '';
+    window._pendingImgs = f.imgs ? [...f.imgs] : [];
+    const list = document.getElementById('img-preview-list');
+    list.innerHTML = '';
+    (f.imgs||[]).forEach((img, i) => {
+      const div = document.createElement('div');
+      div.style.cssText = 'position:relative;display:inline-block;';
+      div.innerHTML = `<img src="${img}" style="height:100px;border-radius:6px;object-fit:cover;">
+        <button onclick="removePreviewImg(${i},this.parentNode)" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:white;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:1;">✕</button>`;
+      list.appendChild(div);
+    });
+    if(f.imgs && f.imgs.length) document.getElementById('img-preview-wrap').style.display = '';
+    editId = id;
+  }, 50);
 }
 
 function resetForm() {
-  ['in-num','in-date','in-content','in-person'].forEach(id => document.getElementById(id).value='');
-  document.getElementById('in-base').value='';
-  document.getElementById('in-img').value='';
-  document.getElementById('img-preview-list').innerHTML='';
-  document.getElementById('img-preview-wrap').style.display='none';
+  ['in-num','in-date','in-content','in-person'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('in-base').value = '';
+  document.getElementById('in-img').value = '';
+  document.getElementById('img-preview-list').innerHTML = '';
+  document.getElementById('img-preview-wrap').style.display = 'none';
   window._pendingImgs = [];
   editId = null;
+  document.getElementById('in-date').value = new Date().toISOString().split('T')[0];
 }
 
 function previewImgs(input) {
   const files = Array.from(input.files);
   if(!files.length) return;
   window._pendingImgs = window._pendingImgs || [];
-  const wrap = document.getElementById('img-preview-wrap');
+  document.getElementById('img-preview-wrap').style.display = '';
   const list = document.getElementById('img-preview-list');
-  wrap.style.display = '';
   files.forEach(file => {
     const reader = new FileReader();
     reader.onload = e => {
@@ -267,100 +412,41 @@ function previewImgs(input) {
     reader.readAsDataURL(file);
   });
 }
+
 function removePreviewImg(idx, el) {
   window._pendingImgs.splice(idx, 1);
   el.remove();
-  // re-index remaining buttons
-  document.querySelectorAll('#img-preview-list button').forEach((btn,i)=>{
-    btn.setAttribute('onclick',`removePreviewImg(${i},this.parentNode)`);
+  document.querySelectorAll('#img-preview-list button').forEach((btn, i) => {
+    btn.setAttribute('onclick', `removePreviewImg(${i},this.parentNode)`);
   });
 }
 
-function renderList() {
-  const base = document.getElementById('filter-base').value;
-  const from = document.getElementById('filter-from').value;
-  const to = document.getElementById('filter-to').value;
-  const kw = document.getElementById('filter-keyword').value.toLowerCase();
-  let list = [...data.feedbacks].filter(f => {
-    if(base && f.base !== base) return false;
-    if(from && f.date < from) return false;
-    if(to && f.date > to) return false;
-    if(kw && !(f.num.toLowerCase().includes(kw)||f.content.toLowerCase().includes(kw))) return false;
-    return true;
-  }).sort((a,b) => b.date.localeCompare(a.date));
-  document.getElementById('result-count').textContent = `${list.length} 件`;
-  const el = document.getElementById('feedback-list');
-  if(!list.length) { el.innerHTML = '<div class="empty">📭 該当するフィードバックがありません</div>'; return; }
-  el.innerHTML = list.map(f => `
-    <div class="fb-card">
-      <div class="fb-card-header">
-        <span class="fb-num"># ${escHtml(f.num)}</span>
-        <span class="fb-date">${f.date}</span>
-      </div>
-      <div class="fb-card-body">
-        <span class="fb-base">${escHtml(f.base)}</span>
-        ${f.person ? `<span style="display:inline-block;background:#e9d8fd;color:#553c9a;border-radius:4px;font-size:.75rem;padding:2px 8px;margin-left:4px;margin-bottom:8px;">👤 ${escHtml(f.person)}</span>` : ''}
-        <div class="fb-content">${escHtml(f.content)}</div>
-        ${f.imgs && f.imgs.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">${f.imgs.map((img,i)=>`<img class="fb-img" src="${img}" alt="画像${i+1}" style="width:calc(50% - 3px);max-height:140px;" onclick="openModal(${f.id},${i})">`).join('')}</div>` : ''}
-        <div class="fb-actions">
-          <button class="btn btn-sm" style="background:#ecc94b;color:#744210;" onclick="editFeedback(${f.id})">✏️ 編集</button>
-          <button class="btn btn-sm btn-danger" onclick="deleteFeedback(${f.id})">🗑️ 削除</button>
-        </div>
-      </div>
-    </div>`).join('');
-}
-
-function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
-function deleteFeedback(id) {
-  if(!confirm('このフィードバックを削除しますか？')) return;
-  data.feedbacks = data.feedbacks.filter(f=>f.id!==id);
-  save(); renderList();
-}
-
-function editFeedback(id) {
-  const f = data.feedbacks.find(f=>f.id===id);
-  if(!f) return;
-  showTab('input');
-  setTimeout(()=>{
-    document.getElementById('in-num').value = f.num;
-    document.getElementById('in-date').value = f.date;
-    document.getElementById('in-base').value = f.base;
-    document.getElementById('in-content').value = f.content;
-    document.getElementById('in-person').value = f.person || '';
-    window._pendingImgs = f.imgs ? [...f.imgs] : [];
-    const list = document.getElementById('img-preview-list');
-    list.innerHTML = '';
-    (f.imgs||[]).forEach((img,i) => {
-      const div = document.createElement('div');
-      div.style.cssText = 'position:relative;display:inline-block;';
-      div.innerHTML = `<img src="${img}" style="height:100px;border-radius:6px;object-fit:cover;">
-        <button onclick="removePreviewImg(${i},this.parentNode)" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:white;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:1;">✕</button>`;
-      list.appendChild(div);
-    });
-    if(f.imgs&&f.imgs.length) document.getElementById('img-preview-wrap').style.display='';
-    editId = id;
-  }, 50);
-}
-
-function clearFilters() {
-  ['filter-base','filter-from','filter-to','filter-keyword'].forEach(id=>{document.getElementById(id).value='';});
-  renderList();
-}
-
 function openModal(id, imgIdx=0) {
-  const f = data.feedbacks.find(f=>f.id==id);
-  if(!f||!f.imgs||!f.imgs.length) return;
+  const f = feedbacks.find(f => String(f.id) === String(id));
+  if(!f || !f.imgs || !f.imgs.length) return;
   document.getElementById('modal-img').src = f.imgs[imgIdx];
   document.getElementById('img-modal').classList.add('open');
 }
 function closeModal() { document.getElementById('img-modal').classList.remove('open'); }
 
-// 今日の日付をデフォルトに
+function clearFilters() {
+  ['filter-base','filter-from','filter-to','filter-keyword'].forEach(id => { document.getElementById(id).value = ''; });
+  renderList();
+}
+
+function showTab(t) {
+  ['list','input','settings'].forEach(id => {
+    document.getElementById('tab-'+id).style.display = id === t ? '' : 'none';
+  });
+  document.querySelectorAll('.tab').forEach((el, i) => {
+    el.classList.toggle('active', ['list','input','settings'][i] === t);
+  });
+  if(t === 'settings') renderBases();
+  if(t === 'input') refreshBaseSelects();
+}
+
 document.getElementById('in-date').value = new Date().toISOString().split('T')[0];
-window._pendingImgs = [];
-refreshBaseSelects();
-renderList();
+loadAll();
 </script>
 </body>
 </html>
