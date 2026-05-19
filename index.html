@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>フィードバック管理ツール</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; color: #2d3748; min-height: 100vh; }
+  header { background: #2b6cb0; color: white; padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 1.2rem; font-weight: 700; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+  .tab { padding: 8px 20px; border-radius: 6px; border: none; cursor: pointer; font-size: 0.95rem; font-weight: 600; transition: all .2s; }
+  .tab.active { background: #2b6cb0; color: white; }
+  .tab:not(.active) { background: white; color: #4a5568; border: 1px solid #cbd5e0; }
+  .card { background: white; border-radius: 10px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 20px; }
+  .card h2 { font-size: 1rem; font-weight: 700; margin-bottom: 14px; color: #2b6cb0; border-bottom: 2px solid #ebf4ff; padding-bottom: 8px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  .form-group.full { grid-column: 1 / -1; }
+  label { font-size: 0.82rem; font-weight: 600; color: #4a5568; }
+  input, select, textarea { border: 1px solid #cbd5e0; border-radius: 6px; padding: 8px 10px; font-size: 0.92rem; width: 100%; outline: none; transition: border .2s; }
+  input:focus, select:focus, textarea:focus { border-color: #2b6cb0; }
+  textarea { resize: vertical; min-height: 80px; }
+  .btn { padding: 9px 20px; border-radius: 6px; border: none; cursor: pointer; font-size: 0.92rem; font-weight: 600; transition: all .2s; }
+  .btn-primary { background: #2b6cb0; color: white; }
+  .btn-primary:hover { background: #2c5282; }
+  .btn-danger { background: #e53e3e; color: white; font-size: 0.8rem; padding: 4px 10px; }
+  .btn-success { background: #38a169; color: white; }
+  .btn-sm { padding: 5px 12px; font-size: 0.82rem; }
+  .filter-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .filter-row .form-group { flex: 1; min-width: 140px; }
+  .feedback-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .fb-card { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; border-left: 4px solid #2b6cb0; }
+  .fb-card-header { padding: 12px 14px; background: #ebf8ff; display: flex; justify-content: space-between; align-items: center; }
+  .fb-num { font-weight: 800; color: #2b6cb0; font-size: 1rem; }
+  .fb-date { font-size: 0.78rem; color: #718096; }
+  .fb-card-body { padding: 12px 14px; }
+  .fb-base { display: inline-block; background: #2b6cb0; color: white; border-radius: 4px; font-size: 0.75rem; padding: 2px 8px; margin-bottom: 8px; }
+  .fb-content { font-size: 0.9rem; color: #2d3748; line-height: 1.5; margin-bottom: 10px; white-space: pre-wrap; }
+  .fb-img { width: 100%; border-radius: 6px; max-height: 200px; object-fit: cover; cursor: pointer; }
+  .fb-actions { display: flex; gap: 6px; margin-top: 10px; }
+  .base-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .base-tag { display: flex; align-items: center; gap: 6px; background: #ebf4ff; border-radius: 20px; padding: 4px 12px; font-size: 0.85rem; }
+  .base-tag span { color: #2b6cb0; font-weight: 600; }
+  .add-base-row { display: flex; gap: 8px; margin-top: 10px; }
+  .empty { text-align: center; color: #a0aec0; padding: 40px; font-size: 0.95rem; }
+  .img-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.8); z-index: 1000; align-items: center; justify-content: center; }
+  .img-modal.open { display: flex; }
+  .img-modal img { max-width: 90vw; max-height: 90vh; border-radius: 8px; }
+  .img-modal-close { position: absolute; top: 16px; right: 24px; color: white; font-size: 2rem; cursor: pointer; font-weight: bold; }
+  .count-badge { background: #e2e8f0; border-radius: 20px; padding: 2px 10px; font-size: 0.8rem; color: #4a5568; }
+  @media(max-width:600px) { .form-grid { grid-template-columns: 1fr; } .filter-row { flex-direction: column; } }
+</style>
+</head>
+<body>
+
+<header>
+  <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+  <h1>フィードバック管理ツール</h1>
+</header>
+
+<div class="container">
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('list')">📋 一覧</button>
+    <button class="tab" onclick="showTab('input')">➕ 入力</button>
+    <button class="tab" onclick="showTab('settings')">⚙️ 拠点設定</button>
+  </div>
+
+  <!-- 一覧タブ -->
+  <div id="tab-list">
+    <div class="card">
+      <h2>🔍 絞り込み</h2>
+      <div class="filter-row">
+        <div class="form-group">
+          <label>拠点</label>
+          <select id="filter-base" onchange="renderList()">
+            <option value="">すべて</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>日付（から）</label>
+          <input type="date" id="filter-from" onchange="renderList()">
+        </div>
+        <div class="form-group">
+          <label>日付（まで）</label>
+          <input type="date" id="filter-to" onchange="renderList()">
+        </div>
+        <div class="form-group">
+          <label>番号・内容検索</label>
+          <input type="text" id="filter-keyword" placeholder="キーワード" oninput="renderList()">
+        </div>
+        <button class="btn btn-sm" style="background:#e2e8f0;color:#4a5568;align-self:flex-end;" onclick="clearFilters()">クリア</button>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <span id="result-count" class="count-badge"></span>
+    </div>
+    <div id="feedback-list" class="feedback-grid"></div>
+  </div>
+
+  <!-- 入力タブ -->
+  <div id="tab-input" style="display:none">
+    <div class="card">
+      <h2>➕ フィードバック入力</h2>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>番号 *</label>
+          <input type="text" id="in-num" placeholder="例: FB-001">
+        </div>
+        <div class="form-group">
+          <label>日付 *</label>
+          <input type="date" id="in-date">
+        </div>
+        <div class="form-group">
+          <label>拠点 *</label>
+          <select id="in-base"><option value="">選択してください</option></select>
+        </div>
+        <div class="form-group">
+          <label>対応者</label>
+          <input type="text" id="in-person" placeholder="例: 田中 太郎">
+        </div>
+        <div class="form-group">
+          <label>画像（複数選択可）</label>
+          <input type="file" id="in-img" accept="image/*" multiple onchange="previewImgs(this)">
+        </div>
+        <div class="form-group full">
+          <label>内容 *</label>
+          <textarea id="in-content" placeholder="フィードバックの内容を入力してください"></textarea>
+        </div>
+        <div class="form-group full" id="img-preview-wrap" style="display:none">
+          <label>画像プレビュー</label>
+          <div id="img-preview-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;"></div>
+        </div>
+      </div>
+      <div style="margin-top:16px;display:flex;gap:8px;">
+        <button class="btn btn-primary" onclick="saveFeedback()">💾 保存</button>
+        <button class="btn" style="background:#e2e8f0;color:#4a5568;" onclick="resetForm()">リセット</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 拠点設定タブ -->
+  <div id="tab-settings" style="display:none">
+    <div class="card">
+      <h2>⚙️ 拠点の管理</h2>
+      <div class="add-base-row">
+        <input type="text" id="new-base-name" placeholder="新しい拠点名を入力" style="flex:1;">
+        <button class="btn btn-success" onclick="addBase()">追加</button>
+      </div>
+      <div class="base-list" id="base-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 画像モーダル -->
+<div class="img-modal" id="img-modal" onclick="closeModal()">
+  <span class="img-modal-close">✕</span>
+  <img id="modal-img" src="" alt="">
+</div>
+
+<script>
+let data = JSON.parse(localStorage.getItem('fb_data') || '{"bases":["本社","東京支店","大阪支店"],"feedbacks":[]}');
+
+function save() { localStorage.setItem('fb_data', JSON.stringify(data)); }
+
+function showTab(t) {
+  ['list','input','settings'].forEach(id => {
+    document.getElementById('tab-'+id).style.display = id===t ? '' : 'none';
+  });
+  document.querySelectorAll('.tab').forEach((el,i) => {
+    el.classList.toggle('active', ['list','input','settings'][i]===t);
+  });
+  if(t==='list') renderList();
+  if(t==='input'||t==='list') refreshBaseSelects();
+  if(t==='settings') renderBases();
+}
+
+function refreshBaseSelects() {
+  const opts = '<option value="">選択してください</option>' + data.bases.map(b=>`<option value="${b}">${b}</option>`).join('');
+  document.getElementById('in-base').innerHTML = opts;
+  const fOpts = '<option value="">すべて</option>' + data.bases.map(b=>`<option value="${b}">${b}</option>`).join('');
+  document.getElementById('filter-base').innerHTML = fOpts;
+}
+
+function renderBases() {
+  const el = document.getElementById('base-list');
+  if(!data.bases.length) { el.innerHTML = '<span style="color:#a0aec0;font-size:.85rem;">拠点が登録されていません</span>'; return; }
+  el.innerHTML = data.bases.map((b,i) => `
+    <div class="base-tag">
+      <span>${b}</span>
+      <button class="btn btn-danger" style="padding:2px 8px;font-size:.75rem;" onclick="removeBase(${i})">削除</button>
+    </div>`).join('');
+}
+
+function addBase() {
+  const v = document.getElementById('new-base-name').value.trim();
+  if(!v) return alert('拠点名を入力してください');
+  if(data.bases.includes(v)) return alert('同じ名前の拠点がすでに存在します');
+  data.bases.push(v);
+  save();
+  document.getElementById('new-base-name').value = '';
+  renderBases();
+}
+
+function removeBase(i) {
+  if(!confirm(`「${data.bases[i]}」を削除しますか？\n（この拠点に紐づくフィードバックは残ります）`)) return;
+  data.bases.splice(i,1);
+  save();
+  renderBases();
+}
+
+let editId = null;
+
+function saveFeedback() {
+  const num = document.getElementById('in-num').value.trim();
+  const date = document.getElementById('in-date').value;
+  const base = document.getElementById('in-base').value;
+  const content = document.getElementById('in-content').value.trim();
+  if(!num||!date||!base||!content) return alert('番号・日付・拠点・内容は必須です');
+  const imgData = person = document.getElementById('in-person').value.trim();
+  // collect images
+  const imgList = window._pendingImgs || [];
+  const person2 = document.getElementById('in-person').value.trim();
+  if(editId !== null) {
+    const idx = data.feedbacks.findIndex(f=>f.id===editId);
+    if(idx>-1) { data.feedbacks[idx] = {...data.feedbacks[idx], num, date, base, content, imgs: imgList, person: person2}; }
+    editId = null;
+  } else {
+    data.feedbacks.push({ id: Date.now(), num, date, base, content, imgs: imgList, person: person2 });
+  }
+  save();
+  resetForm();
+  alert('保存しました！');
+  showTab('list');
+}
+
+function resetForm() {
+  ['in-num','in-date','in-content','in-person'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('in-base').value='';
+  document.getElementById('in-img').value='';
+  document.getElementById('img-preview-list').innerHTML='';
+  document.getElementById('img-preview-wrap').style.display='none';
+  window._pendingImgs = [];
+  editId = null;
+}
+
+function previewImgs(input) {
+  const files = Array.from(input.files);
+  if(!files.length) return;
+  window._pendingImgs = window._pendingImgs || [];
+  const wrap = document.getElementById('img-preview-wrap');
+  const list = document.getElementById('img-preview-list');
+  wrap.style.display = '';
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      window._pendingImgs.push(e.target.result);
+      const idx = window._pendingImgs.length - 1;
+      const div = document.createElement('div');
+      div.style.cssText = 'position:relative;display:inline-block;';
+      div.innerHTML = `<img src="${e.target.result}" style="height:100px;border-radius:6px;object-fit:cover;">
+        <button onclick="removePreviewImg(${idx},this.parentNode)" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:white;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:1;">✕</button>`;
+      list.appendChild(div);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+function removePreviewImg(idx, el) {
+  window._pendingImgs.splice(idx, 1);
+  el.remove();
+  // re-index remaining buttons
+  document.querySelectorAll('#img-preview-list button').forEach((btn,i)=>{
+    btn.setAttribute('onclick',`removePreviewImg(${i},this.parentNode)`);
+  });
+}
+
+function renderList() {
+  const base = document.getElementById('filter-base').value;
+  const from = document.getElementById('filter-from').value;
+  const to = document.getElementById('filter-to').value;
+  const kw = document.getElementById('filter-keyword').value.toLowerCase();
+  let list = [...data.feedbacks].filter(f => {
+    if(base && f.base !== base) return false;
+    if(from && f.date < from) return false;
+    if(to && f.date > to) return false;
+    if(kw && !(f.num.toLowerCase().includes(kw)||f.content.toLowerCase().includes(kw))) return false;
+    return true;
+  }).sort((a,b) => b.date.localeCompare(a.date));
+  document.getElementById('result-count').textContent = `${list.length} 件`;
+  const el = document.getElementById('feedback-list');
+  if(!list.length) { el.innerHTML = '<div class="empty">📭 該当するフィードバックがありません</div>'; return; }
+  el.innerHTML = list.map(f => `
+    <div class="fb-card">
+      <div class="fb-card-header">
+        <span class="fb-num"># ${escHtml(f.num)}</span>
+        <span class="fb-date">${f.date}</span>
+      </div>
+      <div class="fb-card-body">
+        <span class="fb-base">${escHtml(f.base)}</span>
+        ${f.person ? `<span style="display:inline-block;background:#e9d8fd;color:#553c9a;border-radius:4px;font-size:.75rem;padding:2px 8px;margin-left:4px;margin-bottom:8px;">👤 ${escHtml(f.person)}</span>` : ''}
+        <div class="fb-content">${escHtml(f.content)}</div>
+        ${f.imgs && f.imgs.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">${f.imgs.map((img,i)=>`<img class="fb-img" src="${img}" alt="画像${i+1}" style="width:calc(50% - 3px);max-height:140px;" onclick="openModal(${f.id},${i})">`).join('')}</div>` : ''}
+        <div class="fb-actions">
+          <button class="btn btn-sm" style="background:#ecc94b;color:#744210;" onclick="editFeedback(${f.id})">✏️ 編集</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteFeedback(${f.id})">🗑️ 削除</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function deleteFeedback(id) {
+  if(!confirm('このフィードバックを削除しますか？')) return;
+  data.feedbacks = data.feedbacks.filter(f=>f.id!==id);
+  save(); renderList();
+}
+
+function editFeedback(id) {
+  const f = data.feedbacks.find(f=>f.id===id);
+  if(!f) return;
+  showTab('input');
+  setTimeout(()=>{
+    document.getElementById('in-num').value = f.num;
+    document.getElementById('in-date').value = f.date;
+    document.getElementById('in-base').value = f.base;
+    document.getElementById('in-content').value = f.content;
+    document.getElementById('in-person').value = f.person || '';
+    window._pendingImgs = f.imgs ? [...f.imgs] : [];
+    const list = document.getElementById('img-preview-list');
+    list.innerHTML = '';
+    (f.imgs||[]).forEach((img,i) => {
+      const div = document.createElement('div');
+      div.style.cssText = 'position:relative;display:inline-block;';
+      div.innerHTML = `<img src="${img}" style="height:100px;border-radius:6px;object-fit:cover;">
+        <button onclick="removePreviewImg(${i},this.parentNode)" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:white;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:1;">✕</button>`;
+      list.appendChild(div);
+    });
+    if(f.imgs&&f.imgs.length) document.getElementById('img-preview-wrap').style.display='';
+    editId = id;
+  }, 50);
+}
+
+function clearFilters() {
+  ['filter-base','filter-from','filter-to','filter-keyword'].forEach(id=>{document.getElementById(id).value='';});
+  renderList();
+}
+
+function openModal(id, imgIdx=0) {
+  const f = data.feedbacks.find(f=>f.id==id);
+  if(!f||!f.imgs||!f.imgs.length) return;
+  document.getElementById('modal-img').src = f.imgs[imgIdx];
+  document.getElementById('img-modal').classList.add('open');
+}
+function closeModal() { document.getElementById('img-modal').classList.remove('open'); }
+
+// 今日の日付をデフォルトに
+document.getElementById('in-date').value = new Date().toISOString().split('T')[0];
+window._pendingImgs = [];
+refreshBaseSelects();
+renderList();
+</script>
+</body>
+</html>
