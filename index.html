@@ -96,6 +96,7 @@
         </div>
         <button class="btn btn-sm" style="background:#e2e8f0;color:#4a5568;align-self:flex-end;" onclick="clearFilters()">クリア</button>
         <button class="btn btn-sm btn-primary" style="align-self:flex-end;" onclick="loadAll()">🔄 更新</button>
+        <button class="btn btn-sm btn-success" style="align-self:flex-end;" onclick="exportExcel()">📥 Excel出力</button>
       </div>
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
@@ -306,7 +307,39 @@ function renderList() {
     </div>`).join('');
 }
 
-function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function exportExcel() {
+  const base = document.getElementById('filter-base').value;
+  const from = document.getElementById('filter-from').value;
+  const to = document.getElementById('filter-to').value;
+  const kw = document.getElementById('filter-keyword').value.toLowerCase();
+  let list = feedbacks.filter(f => {
+    if(base && f.base !== base) return false;
+    if(from && f.date < from) return false;
+    if(to && f.date > to) return false;
+    if(kw && !(f.num.toLowerCase().includes(kw) || f.content.toLowerCase().includes(kw))) return false;
+    return true;
+  }).sort((a, b) => b.date.localeCompare(a.date));
+  if(!list.length) return alert('出力するデータがありません');
+
+  // CSVを生成（Excelで開ける形式）
+  const BOM = '\uFEFF'; // 文字化け防止
+  const headers = ['番号','日付','拠点','対応者','内容','画像URL'];
+  const rows = list.map(f => [
+    f.num, f.date, f.base, f.person || '',
+    f.content.replace(/\n/g, ' '),
+    (f.imgs || []).join(' | ')
+  ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+  const csv = BOM + [headers.join(','), ...rows].join('\r\n');
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `フィードバック_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('📥 Excelファイルを出力しました');
+}
 
 async function saveFeedback() {
   const num = document.getElementById('in-num').value.trim();
