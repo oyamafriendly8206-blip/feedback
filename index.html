@@ -4,18 +4,22 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>フィードバック管理ツール</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; color: #2d3748; min-height: 100vh; }
   header { background: #2b6cb0; color: white; padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
   header h1 { font-size: 1.2rem; font-weight: 700; }
   .container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
-  .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
   .tab { padding: 8px 20px; border-radius: 6px; border: none; cursor: pointer; font-size: 0.95rem; font-weight: 600; transition: all .2s; }
   .tab.active { background: #2b6cb0; color: white; }
   .tab:not(.active) { background: white; color: #4a5568; border: 1px solid #cbd5e0; }
+  .tab.admin-tab { background: white; color: #744210; border: 1px solid #f6ad55; }
+  .tab.admin-tab.active { background: #c05621; color: white; border-color: #c05621; }
   .card { background: white; border-radius: 10px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 20px; }
   .card h2 { font-size: 1rem; font-weight: 700; margin-bottom: 14px; color: #2b6cb0; border-bottom: 2px solid #ebf4ff; padding-bottom: 8px; }
+  .card h2.admin { color: #c05621; border-bottom-color: #feebc8; }
   .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .form-group { display: flex; flex-direction: column; gap: 4px; }
   .form-group.full { grid-column: 1 / -1; }
@@ -28,49 +32,61 @@
   .btn-primary:hover { background: #2c5282; }
   .btn-danger { background: #e53e3e; color: white; font-size: 0.8rem; padding: 4px 10px; }
   .btn-success { background: #38a169; color: white; }
+  .btn-warning { background: #c05621; color: white; }
   .btn-sm { padding: 5px 12px; font-size: 0.82rem; }
   .filter-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
-  .filter-row .form-group { flex: 1; min-width: 140px; }
+  .filter-row .form-group { flex: 1; min-width: 130px; }
   .feedback-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
   .fb-card { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; border-left: 4px solid #2b6cb0; }
+  .fb-card.done { border-left-color: #38a169; opacity: .85; }
   .fb-card-header { padding: 12px 14px; background: #ebf8ff; display: flex; justify-content: space-between; align-items: center; }
+  .fb-card.done .fb-card-header { background: #f0fff4; }
   .fb-num { font-weight: 800; color: #2b6cb0; font-size: 1rem; }
   .fb-date { font-size: 0.78rem; color: #718096; }
   .fb-card-body { padding: 12px 14px; }
-  .fb-base { display: inline-block; background: #2b6cb0; color: white; border-radius: 4px; font-size: 0.75rem; padding: 2px 8px; margin-bottom: 8px; }
-  .fb-content { font-size: 0.9rem; color: #2d3748; line-height: 1.5; margin-bottom: 10px; white-space: pre-wrap; }
+  .fb-base { display: inline-block; background: #2b6cb0; color: white; border-radius: 4px; font-size: .75rem; padding: 2px 8px; margin-bottom: 8px; }
+  .fb-content { font-size: .9rem; color: #2d3748; line-height: 1.5; margin-bottom: 10px; white-space: pre-wrap; }
   .fb-img { width: calc(50% - 3px); border-radius: 6px; max-height: 140px; object-fit: cover; cursor: pointer; }
-  .fb-actions { display: flex; gap: 6px; margin-top: 10px; }
+  .fb-actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
   .base-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-  .base-tag { display: flex; align-items: center; gap: 6px; background: #ebf4ff; border-radius: 20px; padding: 4px 12px; font-size: 0.85rem; }
+  .base-tag { display: flex; align-items: center; gap: 6px; background: #ebf4ff; border-radius: 20px; padding: 4px 12px; font-size: .85rem; }
   .base-tag span { color: #2b6cb0; font-weight: 600; }
   .add-base-row { display: flex; gap: 8px; }
-  .empty { text-align: center; color: #a0aec0; padding: 40px; font-size: 0.95rem; }
+  .empty { text-align: center; color: #a0aec0; padding: 40px; font-size: .95rem; }
   .img-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.8); z-index: 1000; align-items: center; justify-content: center; }
   .img-modal.open { display: flex; }
   .img-modal img { max-width: 90vw; max-height: 90vh; border-radius: 8px; }
   .img-modal-close { position: absolute; top: 16px; right: 24px; color: white; font-size: 2rem; cursor: pointer; font-weight: bold; }
-  .count-badge { background: #e2e8f0; border-radius: 20px; padding: 2px 10px; font-size: 0.8rem; color: #4a5568; }
+  .count-badge { background: #e2e8f0; border-radius: 20px; padding: 2px 10px; font-size: .8rem; color: #4a5568; }
   .loading { text-align: center; color: #718096; padding: 40px; }
   .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid #cbd5e0; border-top-color: #2b6cb0; border-radius: 50%; animation: spin .7s linear infinite; margin-bottom: 8px; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .toast { position: fixed; bottom: 24px; right: 24px; background: #2d3748; color: white; padding: 10px 20px; border-radius: 8px; font-size: 0.9rem; opacity: 0; transition: opacity .3s; z-index: 2000; }
+  .toast { position: fixed; bottom: 24px; right: 24px; background: #2d3748; color: white; padding: 10px 20px; border-radius: 8px; font-size: .9rem; opacity: 0; transition: opacity .3s; z-index: 2000; }
   .toast.show { opacity: 1; }
-  @media(max-width:600px) { .form-grid { grid-template-columns: 1fr; } .filter-row { flex-direction: column; } }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .stat-card { background: white; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); text-align: center; }
+  .stat-num { font-size: 2rem; font-weight: 800; color: #2b6cb0; }
+  .stat-label { font-size: .82rem; color: #718096; margin-top: 4px; }
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .chart-box { background: white; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  .chart-box h3 { font-size: .9rem; font-weight: 700; color: #4a5568; margin-bottom: 12px; }
+  .pw-box { max-width: 360px; margin: 60px auto; text-align: center; }
+  .pw-box h2 { font-size: 1.1rem; margin-bottom: 16px; color: #c05621; }
+  .lock-icon { font-size: 3rem; margin-bottom: 12px; }
+  @media(max-width:600px) { .form-grid { grid-template-columns: 1fr; } .filter-row { flex-direction: column; } .chart-grid { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
-
 <header>
   <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
   <h1>フィードバック管理ツール</h1>
 </header>
-
 <div class="container">
   <div class="tabs">
     <button class="tab active" onclick="showTab('list')">📋 一覧</button>
     <button class="tab" onclick="showTab('input')">➕ 入力</button>
     <button class="tab" onclick="showTab('settings')">⚙️ 拠点設定</button>
+    <button class="tab admin-tab" onclick="showTab('admin')">🔐 管理者</button>
   </div>
 
   <!-- 一覧 -->
@@ -81,6 +97,10 @@
         <div class="form-group">
           <label>拠点</label>
           <select id="filter-base" onchange="renderList()"><option value="">すべて</option></select>
+        </div>
+        <div class="form-group">
+          <label>対応者</label>
+          <select id="filter-person" onchange="renderList()"><option value="">すべて</option></select>
         </div>
         <div class="form-group">
           <label>ステータス</label>
@@ -174,6 +194,46 @@
       <div class="base-list" id="base-list"></div>
     </div>
   </div>
+
+  <!-- 管理者 -->
+  <div id="tab-admin" style="display:none">
+    <div id="admin-lock">
+      <div class="pw-box">
+        <div class="lock-icon">🔐</div>
+        <h2>管理者専用エリア</h2>
+        <p style="color:#718096;font-size:.9rem;margin-bottom:16px;">パスワードを入力してください</p>
+        <input type="password" id="admin-pw" placeholder="パスワード" style="margin-bottom:10px;" onkeydown="if(event.key==='Enter')checkPw()">
+        <br>
+        <button class="btn btn-warning" onclick="checkPw()">ログイン</button>
+        <p id="pw-error" style="color:#e53e3e;font-size:.85rem;margin-top:8px;display:none;">パスワードが違います</p>
+      </div>
+    </div>
+    <div id="admin-content" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h2 style="font-size:1.1rem;font-weight:700;color:#c05621;">📊 統計ダッシュボード</h2>
+        <button class="btn btn-sm" style="background:#e2e8f0;color:#4a5568;" onclick="lockAdmin()">🔒 ロック</button>
+      </div>
+      <div class="stat-grid" id="stat-cards"></div>
+      <div class="chart-grid">
+        <div class="chart-box">
+          <h3>👤 対応者別 件数</h3>
+          <canvas id="chart-person"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>✅ ステータス別 件数</h3>
+          <canvas id="chart-status"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>🏢 拠点別 件数</h3>
+          <canvas id="chart-base"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>📅 日付別 件数（直近30日）</h3>
+          <canvas id="chart-date"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="img-modal" id="img-modal" onclick="closeModal()">
@@ -185,51 +245,35 @@
 <script>
 const SB_URL = 'https://kcahlszfdjwhkflspycq.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjYWhsc3pmZGp3aGtmbHNweWNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNTYxMTgsImV4cCI6MjA5NDczMjExOH0.sSBc8zUjp-lGQ_i7JucKV9dQwr7_Lwz-XMBFWmdKW-Y';
+const ADMIN_PW = 'agekke8206';
 const HEADERS = { 'Content-Type': 'application/json', 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY };
 
-let feedbacks = [], bases = [], editId = null;
+let feedbacks = [], bases = [], editId = null, charts = {};
 window._pendingImgs = [];
 
-function toast(msg, d=2500) {
-  const el = document.getElementById('toast');
-  el.textContent = msg; el.classList.add('show');
-  setTimeout(() => el.classList.remove('show'), d);
-}
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function toast(msg, d=2500) { const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),d); }
 
 async function sbGet(table, params='') {
   const res = await fetch(`${SB_URL}/rest/v1/${table}?${params}`, { headers: { ...HEADERS, 'Prefer': 'return=representation' } });
   return res.json();
 }
-
 async function sbPost(table, body) {
-  const res = await fetch(`${SB_URL}/rest/v1/${table}`, {
-    method: 'POST',
-    headers: { ...HEADERS, 'Prefer': 'return=representation' },
-    body: JSON.stringify(body)
-  });
+  const res = await fetch(`${SB_URL}/rest/v1/${table}`, { method: 'POST', headers: { ...HEADERS, 'Prefer': 'return=representation' }, body: JSON.stringify(body) });
   return res.json();
 }
-
 async function sbPatch(table, id, body) {
-  const res = await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`, {
-    method: 'PATCH',
-    headers: { ...HEADERS, 'Prefer': 'return=representation' },
-    body: JSON.stringify(body)
-  });
+  const res = await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`, { method: 'PATCH', headers: { ...HEADERS, 'Prefer': 'return=representation' }, body: JSON.stringify(body) });
   return res.json();
 }
-
 async function sbDelete(table, id) {
   await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`, { method: 'DELETE', headers: HEADERS });
 }
-
 async function uploadImage(base64, filename) {
-  const decoded = await fetch(base64).then(r => r.blob());
+  const blob = await fetch(base64).then(r => r.blob());
   const path = `${Date.now()}_${filename}`;
   const res = await fetch(`${SB_URL}/storage/v1/object/feedback-images/${path}`, {
-    method: 'POST',
-    headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': decoded.type },
-    body: decoded
+    method: 'POST', headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': blob.type }, body: blob
   });
   if(!res.ok) throw new Error('画像アップロード失敗');
   return `${SB_URL}/storage/v1/object/public/feedback-images/${path}`;
@@ -238,13 +282,11 @@ async function uploadImage(base64, filename) {
 async function loadAll() {
   document.getElementById('feedback-list').innerHTML = '<div class="loading"><div class="spinner"></div><br>読み込み中...</div>';
   try {
-    const [fbData, baseData] = await Promise.all([
-      sbGet('feedbacks', 'order=date.desc'),
-      sbGet('bases', 'order=id.asc')
-    ]);
-    feedbacks = (fbData || []).map(f => ({ ...f, imgs: f.imgs ? JSON.parse(f.imgs) : [] }));
-    bases = (baseData || []).map(b => b.name);
+    const [fbData, baseData] = await Promise.all([sbGet('feedbacks','order=date.desc'), sbGet('bases','order=id.asc')]);
+    feedbacks = (fbData||[]).map(f => ({ ...f, imgs: f.imgs ? JSON.parse(f.imgs) : [], status: f.status||'未完了' }));
+    bases = (baseData||[]).map(b => b.name);
     refreshBaseSelects();
+    refreshPersonFilter();
     renderList();
   } catch(e) {
     document.getElementById('feedback-list').innerHTML = '<div class="empty">⚠️ データの読み込みに失敗しました。</div>';
@@ -252,22 +294,24 @@ async function loadAll() {
 }
 
 function refreshBaseSelects() {
-  const opts = '<option value="">選択してください</option>' + bases.map(b => `<option value="${b}">${b}</option>`).join('');
+  const opts = '<option value="">選択してください</option>' + bases.map(b=>`<option value="${b}">${b}</option>`).join('');
   document.getElementById('in-base').innerHTML = opts;
-  const fOpts = '<option value="">すべて</option>' + bases.map(b => `<option value="${b}">${b}</option>`).join('');
+  const fOpts = '<option value="">すべて</option>' + bases.map(b=>`<option value="${b}">${b}</option>`).join('');
   document.getElementById('filter-base').innerHTML = fOpts;
 }
 
-function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function refreshPersonFilter() {
+  const persons = [...new Set(feedbacks.map(f => f.person).filter(Boolean))].sort();
+  const el = document.getElementById('filter-person');
+  const cur = el.value;
+  el.innerHTML = '<option value="">すべて</option>' + persons.map(p=>`<option value="${p}">${p}</option>`).join('');
+  if(cur) el.value = cur;
+}
 
 function renderBases() {
   const el = document.getElementById('base-list');
   if(!bases.length) { el.innerHTML = '<span style="color:#a0aec0;font-size:.85rem;">拠点が登録されていません</span>'; return; }
-  el.innerHTML = bases.map((b, i) => `
-    <div class="base-tag">
-      <span>${esc(b)}</span>
-      <button class="btn btn-danger" style="padding:2px 8px;font-size:.75rem;" onclick="removeBase(${i})">削除</button>
-    </div>`).join('');
+  el.innerHTML = bases.map((b,i) => `<div class="base-tag"><span>${esc(b)}</span><button class="btn btn-danger" style="padding:2px 8px;font-size:.75rem;" onclick="removeBase(${i})">削除</button></div>`).join('');
 }
 
 async function addBase() {
@@ -292,73 +336,41 @@ async function removeBase(i) {
 
 function renderList() {
   const base = document.getElementById('filter-base').value;
+  const person = document.getElementById('filter-person').value;
   const status = document.getElementById('filter-status').value;
   const from = document.getElementById('filter-from').value;
   const to = document.getElementById('filter-to').value;
   const kw = document.getElementById('filter-keyword').value.toLowerCase();
   let list = feedbacks.filter(f => {
     if(base && f.base !== base) return false;
+    if(person && (f.person||'') !== person) return false;
     if(status && (f.status||'未完了') !== status) return false;
     if(from && f.date < from) return false;
     if(to && f.date > to) return false;
-    if(kw && !(f.num.toLowerCase().includes(kw) || f.content.toLowerCase().includes(kw))) return false;
+    if(kw && !(f.num.toLowerCase().includes(kw)||f.content.toLowerCase().includes(kw))) return false;
     return true;
-  }).sort((a, b) => b.date.localeCompare(a.date));
+  }).sort((a,b) => b.date.localeCompare(a.date));
   document.getElementById('result-count').textContent = `${list.length} 件`;
   const el = document.getElementById('feedback-list');
   if(!list.length) { el.innerHTML = '<div class="empty">📭 該当するフィードバックがありません</div>'; return; }
   el.innerHTML = list.map(f => `
-    <div class="fb-card">
+    <div class="fb-card ${f.status==='完了'?'done':''}">
       <div class="fb-card-header">
         <span class="fb-num"># ${esc(f.num)}</span>
         <span class="fb-date">${f.date}</span>
       </div>
       <div class="fb-card-body">
         <span class="fb-base">${esc(f.base)}</span>
-        ${f.person ? `<span style="display:inline-block;background:#e9d8fd;color:#553c9a;border-radius:4px;font-size:.75rem;padding:2px 8px;margin-left:4px;margin-bottom:8px;">👤 ${esc(f.person)}</span>` : ''}
+        ${f.person?`<span style="display:inline-block;background:#e9d8fd;color:#553c9a;border-radius:4px;font-size:.75rem;padding:2px 8px;margin-left:4px;margin-bottom:8px;">👤 ${esc(f.person)}</span>`:''}
         <span onclick="toggleStatus('${f.id}')" style="display:inline-block;cursor:pointer;border-radius:4px;font-size:.75rem;padding:2px 8px;margin-left:4px;margin-bottom:8px;background:${f.status==='完了'?'#c6f6d5':'#fed7d7'};color:${f.status==='完了'?'#276749':'#9b2c2c'};">${f.status==='完了'?'✅ 完了':'⏳ 未完了'}</span>
         <div class="fb-content">${esc(f.content)}</div>
-        ${f.imgs && f.imgs.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">${f.imgs.map((img, i) => `<img class="fb-img" src="${img}" alt="画像${i+1}" onclick="openModal('${f.id}',${i})">`).join('')}</div>` : ''}
+        ${f.imgs&&f.imgs.length?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">${f.imgs.map((img,i)=>`<img class="fb-img" src="${img}" alt="画像${i+1}" onclick="openModal('${f.id}',${i})">`).join('')}</div>`:''}
         <div class="fb-actions">
           <button class="btn btn-sm" style="background:#ecc94b;color:#744210;" onclick="editFeedback('${f.id}')">✏️ 編集</button>
           <button class="btn btn-sm btn-danger" onclick="deleteFeedback('${f.id}')">🗑️ 削除</button>
         </div>
       </div>
     </div>`).join('');
-}
-
-function exportExcel() {
-  const base = document.getElementById('filter-base').value;
-  const from = document.getElementById('filter-from').value;
-  const to = document.getElementById('filter-to').value;
-  const kw = document.getElementById('filter-keyword').value.toLowerCase();
-  let list = feedbacks.filter(f => {
-    if(base && f.base !== base) return false;
-    if(from && f.date < from) return false;
-    if(to && f.date > to) return false;
-    if(kw && !(f.num.toLowerCase().includes(kw) || f.content.toLowerCase().includes(kw))) return false;
-    return true;
-  }).sort((a, b) => b.date.localeCompare(a.date));
-  if(!list.length) return alert('出力するデータがありません');
-
-  // CSVを生成（Excelで開ける形式）
-  const BOM = '\uFEFF'; // 文字化け防止
-  const headers = ['番号','日付','拠点','対応者','内容','画像URL'];
-  const rows = list.map(f => [
-    f.num, f.date, f.base, f.person || '',
-    f.content.replace(/\n/g, ' '),
-    (f.imgs || []).join(' | ')
-  ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
-  const csv = BOM + [headers.join(','), ...rows].join('\r\n');
-
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `フィードバック_${new Date().toISOString().slice(0,10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-  toast('📥 Excelファイルを出力しました');
 }
 
 async function saveFeedback() {
@@ -372,26 +384,25 @@ async function saveFeedback() {
   const btn = document.getElementById('save-btn');
   btn.disabled = true;
   try {
-    // 画像アップロード
     const imgUrls = [];
     for(let i = 0; i < window._pendingImgs.length; i++) {
       const src = window._pendingImgs[i];
       if(src.startsWith('http')) { imgUrls.push(src); continue; }
       btn.textContent = `画像アップロード中... (${i+1}/${window._pendingImgs.length})`;
-      const url = await uploadImage(src, `img${i}.jpg`);
-      imgUrls.push(url);
+      imgUrls.push(await uploadImage(src, `img${i}.jpg`));
     }
     btn.textContent = '保存中...';
     const payload = { num, date, base, person, content, status, imgs: JSON.stringify(imgUrls) };
     if(editId !== null) {
       await sbPatch('feedbacks', editId, payload);
-      const idx = feedbacks.findIndex(f => String(f.id) === String(editId));
-      if(idx > -1) feedbacks[idx] = { ...feedbacks[idx], ...payload, imgs: imgUrls };
+      const idx = feedbacks.findIndex(f=>String(f.id)===String(editId));
+      if(idx>-1) feedbacks[idx] = { ...feedbacks[idx], ...payload, imgs: imgUrls };
     } else {
       const id = Date.now();
       await sbPost('feedbacks', { id, ...payload });
       feedbacks.unshift({ id, ...payload, imgs: imgUrls });
     }
+    refreshPersonFilter();
     resetForm();
     toast('✅ 保存しました！');
     showTab('list');
@@ -402,75 +413,75 @@ async function saveFeedback() {
   }
 }
 
-async function toggleStatus(id) {
-  const f = feedbacks.find(f => String(f.id) === String(id));
-  if(!f) return;
-  const newStatus = (f.status || '未完了') === '未完了' ? '完了' : '未完了';
-  await sbPatch('feedbacks', id, { status: newStatus });
-  f.status = newStatus;
-  renderList();
-  toast(newStatus === '完了' ? '✅ 完了にしました' : '⏳ 未完了に戻しました');
-}
-
 async function deleteFeedback(id) {
   if(!confirm('このフィードバックを削除しますか？')) return;
   await sbDelete('feedbacks', id);
-  feedbacks = feedbacks.filter(f => String(f.id) !== String(id));
-  renderList();
+  feedbacks = feedbacks.filter(f=>String(f.id)!==String(id));
+  refreshPersonFilter(); renderList();
   toast('🗑️ 削除しました');
 }
 
+async function toggleStatus(id) {
+  const f = feedbacks.find(f=>String(f.id)===String(id));
+  if(!f) return;
+  const newStatus = (f.status||'未完了')==='未完了'?'完了':'未完了';
+  await sbPatch('feedbacks', id, { status: newStatus });
+  f.status = newStatus;
+  renderList();
+  toast(newStatus==='完了'?'✅ 完了にしました':'⏳ 未完了に戻しました');
+}
+
 function editFeedback(id) {
-  const f = feedbacks.find(f => String(f.id) === String(id));
+  const f = feedbacks.find(f=>String(f.id)===String(id));
   if(!f) return;
   showTab('input');
-  setTimeout(() => {
+  setTimeout(()=>{
     document.getElementById('in-num').value = f.num;
     document.getElementById('in-date').value = f.date;
     document.getElementById('in-base').value = f.base;
     document.getElementById('in-content').value = f.content;
-    document.getElementById('in-person').value = f.person || '';
+    document.getElementById('in-person').value = f.person||'';
+    document.getElementById('in-status').value = f.status||'未完了';
     window._pendingImgs = f.imgs ? [...f.imgs] : [];
     const list = document.getElementById('img-preview-list');
     list.innerHTML = '';
-    (f.imgs||[]).forEach((img, i) => {
+    (f.imgs||[]).forEach((img,i) => {
       const div = document.createElement('div');
       div.style.cssText = 'position:relative;display:inline-block;';
-      div.innerHTML = `<img src="${img}" style="height:100px;border-radius:6px;object-fit:cover;">
-        <button onclick="removePreviewImg(${i},this.parentNode)" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:white;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:1;">✕</button>`;
+      div.innerHTML = `<img src="${img}" style="height:100px;border-radius:6px;object-fit:cover;"><button onclick="removePreviewImg(${i},this.parentNode)" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:white;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:1;">✕</button>`;
       list.appendChild(div);
     });
-    if(f.imgs && f.imgs.length) document.getElementById('img-preview-wrap').style.display = '';
+    if(f.imgs&&f.imgs.length) document.getElementById('img-preview-wrap').style.display='';
     editId = id;
   }, 50);
 }
 
 function resetForm() {
-  ['in-num','in-date','in-content','in-person'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('in-base').value = '';
-  document.getElementById('in-img').value = '';
-  document.getElementById('img-preview-list').innerHTML = '';
-  document.getElementById('img-preview-wrap').style.display = 'none';
-  window._pendingImgs = [];
-  editId = null;
-  document.getElementById('in-date').value = new Date().toISOString().split('T')[0];
+  ['in-num','in-date','in-content','in-person'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('in-base').value='';
+  document.getElementById('in-status').value='未完了';
+  document.getElementById('in-img').value='';
+  document.getElementById('img-preview-list').innerHTML='';
+  document.getElementById('img-preview-wrap').style.display='none';
+  window._pendingImgs=[];
+  editId=null;
+  document.getElementById('in-date').value=new Date().toISOString().split('T')[0];
 }
 
 function previewImgs(input) {
   const files = Array.from(input.files);
   if(!files.length) return;
-  window._pendingImgs = window._pendingImgs || [];
-  document.getElementById('img-preview-wrap').style.display = '';
+  window._pendingImgs = window._pendingImgs||[];
+  document.getElementById('img-preview-wrap').style.display='';
   const list = document.getElementById('img-preview-list');
   files.forEach(file => {
     const reader = new FileReader();
     reader.onload = e => {
       window._pendingImgs.push(e.target.result);
-      const idx = window._pendingImgs.length - 1;
+      const idx = window._pendingImgs.length-1;
       const div = document.createElement('div');
-      div.style.cssText = 'position:relative;display:inline-block;';
-      div.innerHTML = `<img src="${e.target.result}" style="height:100px;border-radius:6px;object-fit:cover;">
-        <button onclick="removePreviewImg(${idx},this.parentNode)" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:white;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:1;">✕</button>`;
+      div.style.cssText='position:relative;display:inline-block;';
+      div.innerHTML=`<img src="${e.target.result}" style="height:100px;border-radius:6px;object-fit:cover;"><button onclick="removePreviewImg(${idx},this.parentNode)" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:white;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:1;">✕</button>`;
       list.appendChild(div);
     };
     reader.readAsDataURL(file);
@@ -478,38 +489,147 @@ function previewImgs(input) {
 }
 
 function removePreviewImg(idx, el) {
-  window._pendingImgs.splice(idx, 1);
+  window._pendingImgs.splice(idx,1);
   el.remove();
-  document.querySelectorAll('#img-preview-list button').forEach((btn, i) => {
-    btn.setAttribute('onclick', `removePreviewImg(${i},this.parentNode)`);
-  });
+  document.querySelectorAll('#img-preview-list button').forEach((btn,i)=>btn.setAttribute('onclick',`removePreviewImg(${i},this.parentNode)`));
 }
 
 function openModal(id, imgIdx=0) {
-  const f = feedbacks.find(f => String(f.id) === String(id));
-  if(!f || !f.imgs || !f.imgs.length) return;
-  document.getElementById('modal-img').src = f.imgs[imgIdx];
+  const f = feedbacks.find(f=>String(f.id)===String(id));
+  if(!f||!f.imgs||!f.imgs.length) return;
+  document.getElementById('modal-img').src=f.imgs[imgIdx];
   document.getElementById('img-modal').classList.add('open');
 }
 function closeModal() { document.getElementById('img-modal').classList.remove('open'); }
 
 function clearFilters() {
-  ['filter-base','filter-from','filter-to','filter-keyword'].forEach(id => { document.getElementById(id).value = ''; });
+  ['filter-base','filter-person','filter-status','filter-from','filter-to','filter-keyword'].forEach(id=>{document.getElementById(id).value='';});
   renderList();
 }
 
-function showTab(t) {
-  ['list','input','settings'].forEach(id => {
-    document.getElementById('tab-'+id).style.display = id === t ? '' : 'none';
-  });
-  document.querySelectorAll('.tab').forEach((el, i) => {
-    el.classList.toggle('active', ['list','input','settings'][i] === t);
-  });
-  if(t === 'settings') renderBases();
-  if(t === 'input') refreshBaseSelects();
+function exportExcel() {
+  const base=document.getElementById('filter-base').value, person=document.getElementById('filter-person').value;
+  const status=document.getElementById('filter-status').value, from=document.getElementById('filter-from').value;
+  const to=document.getElementById('filter-to').value, kw=document.getElementById('filter-keyword').value.toLowerCase();
+  let list=feedbacks.filter(f=>{
+    if(base&&f.base!==base)return false;
+    if(person&&(f.person||'')!==person)return false;
+    if(status&&(f.status||'未完了')!==status)return false;
+    if(from&&f.date<from)return false;
+    if(to&&f.date>to)return false;
+    if(kw&&!(f.num.toLowerCase().includes(kw)||f.content.toLowerCase().includes(kw)))return false;
+    return true;
+  }).sort((a,b)=>b.date.localeCompare(a.date));
+  if(!list.length) return alert('出力するデータがありません');
+  const BOM='\uFEFF';
+  const headers=['番号','日付','拠点','対応者','ステータス','内容','画像URL'];
+  const rows=list.map(f=>[f.num,f.date,f.base,f.person||'',f.status||'未完了',f.content.replace(/\n/g,' '),(f.imgs||[]).join(' | ')].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
+  const csv=BOM+[headers.join(','),...rows].join('\r\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download=`フィードバック_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  toast('📥 Excel出力しました');
 }
 
-document.getElementById('in-date').value = new Date().toISOString().split('T')[0];
+// 管理者
+function checkPw() {
+  const pw = document.getElementById('admin-pw').value;
+  if(pw === ADMIN_PW) {
+    document.getElementById('admin-lock').style.display='none';
+    document.getElementById('admin-content').style.display='';
+    document.getElementById('pw-error').style.display='none';
+    renderStats();
+  } else {
+    document.getElementById('pw-error').style.display='';
+    document.getElementById('admin-pw').value='';
+  }
+}
+
+function lockAdmin() {
+  document.getElementById('admin-lock').style.display='';
+  document.getElementById('admin-content').style.display='none';
+  document.getElementById('admin-pw').value='';
+  Object.values(charts).forEach(c=>c.destroy());
+  charts={};
+}
+
+function renderStats() {
+  const total = feedbacks.length;
+  const done = feedbacks.filter(f=>f.status==='完了').length;
+  const undone = total - done;
+  const persons = [...new Set(feedbacks.map(f=>f.person).filter(Boolean))];
+
+  document.getElementById('stat-cards').innerHTML = `
+    <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-label">総件数</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:#38a169">${done}</div><div class="stat-label">完了件数</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:#e53e3e">${undone}</div><div class="stat-label">未完了件数</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:#805ad5">${persons.length}</div><div class="stat-label">対応者数</div></div>
+  `;
+
+  const colors = ['#2b6cb0','#38a169','#c05621','#805ad5','#d69e2e','#e53e3e','#319795','#dd6b20'];
+
+  // 対応者別
+  const personCounts = {};
+  feedbacks.forEach(f=>{ const p=f.person||'未設定'; personCounts[p]=(personCounts[p]||0)+1; });
+  renderChart('chart-person', 'bar', Object.keys(personCounts), Object.values(personCounts), colors);
+
+  // ステータス別
+  renderChart('chart-status', 'doughnut', ['完了','未完了'], [done, undone], ['#38a169','#e53e3e']);
+
+  // 拠点別
+  const baseCounts = {};
+  feedbacks.forEach(f=>{ baseCounts[f.base]=(baseCounts[f.base]||0)+1; });
+  renderChart('chart-base', 'bar', Object.keys(baseCounts), Object.values(baseCounts), colors);
+
+  // 日付別（直近30日）
+  const today = new Date();
+  const dateMap = {};
+  for(let i=29;i>=0;i--){
+    const d=new Date(today); d.setDate(d.getDate()-i);
+    dateMap[d.toISOString().slice(0,10)]=0;
+  }
+  feedbacks.forEach(f=>{ if(dateMap[f.date]!==undefined) dateMap[f.date]++; });
+  renderChart('chart-date', 'line', Object.keys(dateMap), Object.values(dateMap), ['#2b6cb0']);
+}
+
+function renderChart(id, type, labels, data, colors) {
+  if(charts[id]) charts[id].destroy();
+  const ctx = document.getElementById(id).getContext('2d');
+  charts[id] = new Chart(ctx, {
+    type,
+    data: {
+      labels,
+      datasets: [{
+        data,
+        backgroundColor: type==='line' ? 'rgba(43,108,176,.15)' : colors,
+        borderColor: type==='line' ? '#2b6cb0' : colors,
+        borderWidth: type==='line' ? 2 : 1,
+        fill: type==='line',
+        tension: .3,
+        pointRadius: type==='line' ? 3 : undefined
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: type==='doughnut' } },
+      scales: type!=='doughnut' ? { y: { beginAtZero: true, ticks: { stepSize: 1 } } } : {}
+    }
+  });
+}
+
+function showTab(t) {
+  ['list','input','settings','admin'].forEach(id=>{
+    document.getElementById('tab-'+id).style.display=id===t?'':'none';
+  });
+  document.querySelectorAll('.tab').forEach((el,i)=>{
+    el.classList.toggle('active',['list','input','settings','admin'][i]===t);
+  });
+  if(t==='settings') renderBases();
+  if(t==='input') refreshBaseSelects();
+}
+
+document.getElementById('in-date').value=new Date().toISOString().split('T')[0];
 loadAll();
 </script>
 </body>
