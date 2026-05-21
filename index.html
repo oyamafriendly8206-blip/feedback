@@ -83,6 +83,14 @@
           <select id="filter-base" onchange="renderList()"><option value="">すべて</option></select>
         </div>
         <div class="form-group">
+          <label>ステータス</label>
+          <select id="filter-status" onchange="renderList()">
+            <option value="">すべて</option>
+            <option value="未完了">未完了</option>
+            <option value="完了">完了</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label>日付（から）</label>
           <input type="date" id="filter-from" onchange="renderList()">
         </div>
@@ -127,6 +135,13 @@
         <div class="form-group">
           <label>対応者</label>
           <input type="text" id="in-person" placeholder="例: 田中 太郎">
+        </div>
+        <div class="form-group">
+          <label>ステータス</label>
+          <select id="in-status">
+            <option value="未完了">未完了</option>
+            <option value="完了">完了</option>
+          </select>
         </div>
         <div class="form-group full">
           <label>内容 *</label>
@@ -277,11 +292,13 @@ async function removeBase(i) {
 
 function renderList() {
   const base = document.getElementById('filter-base').value;
+  const status = document.getElementById('filter-status').value;
   const from = document.getElementById('filter-from').value;
   const to = document.getElementById('filter-to').value;
   const kw = document.getElementById('filter-keyword').value.toLowerCase();
   let list = feedbacks.filter(f => {
     if(base && f.base !== base) return false;
+    if(status && (f.status||'未完了') !== status) return false;
     if(from && f.date < from) return false;
     if(to && f.date > to) return false;
     if(kw && !(f.num.toLowerCase().includes(kw) || f.content.toLowerCase().includes(kw))) return false;
@@ -299,6 +316,7 @@ function renderList() {
       <div class="fb-card-body">
         <span class="fb-base">${esc(f.base)}</span>
         ${f.person ? `<span style="display:inline-block;background:#e9d8fd;color:#553c9a;border-radius:4px;font-size:.75rem;padding:2px 8px;margin-left:4px;margin-bottom:8px;">👤 ${esc(f.person)}</span>` : ''}
+        <span onclick="toggleStatus('${f.id}')" style="display:inline-block;cursor:pointer;border-radius:4px;font-size:.75rem;padding:2px 8px;margin-left:4px;margin-bottom:8px;background:${f.status==='完了'?'#c6f6d5':'#fed7d7'};color:${f.status==='完了'?'#276749':'#9b2c2c'};">${f.status==='完了'?'✅ 完了':'⏳ 未完了'}</span>
         <div class="fb-content">${esc(f.content)}</div>
         ${f.imgs && f.imgs.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">${f.imgs.map((img, i) => `<img class="fb-img" src="${img}" alt="画像${i+1}" onclick="openModal('${f.id}',${i})">`).join('')}</div>` : ''}
         <div class="fb-actions">
@@ -350,6 +368,7 @@ async function saveFeedback() {
   const content = document.getElementById('in-content').value.trim();
   if(!num||!date||!base||!content) return alert('番号・日付・拠点・内容は必須です');
   const person = document.getElementById('in-person').value.trim();
+  const status = document.getElementById('in-status').value;
   const btn = document.getElementById('save-btn');
   btn.disabled = true;
   try {
@@ -363,7 +382,7 @@ async function saveFeedback() {
       imgUrls.push(url);
     }
     btn.textContent = '保存中...';
-    const payload = { num, date, base, person, content, imgs: JSON.stringify(imgUrls) };
+    const payload = { num, date, base, person, content, status, imgs: JSON.stringify(imgUrls) };
     if(editId !== null) {
       await sbPatch('feedbacks', editId, payload);
       const idx = feedbacks.findIndex(f => String(f.id) === String(editId));
@@ -381,6 +400,16 @@ async function saveFeedback() {
   } finally {
     btn.textContent = '💾 保存'; btn.disabled = false;
   }
+}
+
+async function toggleStatus(id) {
+  const f = feedbacks.find(f => String(f.id) === String(id));
+  if(!f) return;
+  const newStatus = (f.status || '未完了') === '未完了' ? '完了' : '未完了';
+  await sbPatch('feedbacks', id, { status: newStatus });
+  f.status = newStatus;
+  renderList();
+  toast(newStatus === '完了' ? '✅ 完了にしました' : '⏳ 未完了に戻しました');
 }
 
 async function deleteFeedback(id) {
