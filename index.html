@@ -11,15 +11,15 @@
   header { background: #2b6cb0; color: white; padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
   header h1 { font-size: 1.2rem; font-weight: 700; }
   .container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
-  .tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
-  .tab { padding: 8px 20px; border-radius: 6px; border: none; cursor: pointer; font-size: 0.95rem; font-weight: 600; transition: all .2s; }
-  .tab.active { background: #2b6cb0; color: white; }
-  .tab:not(.active) { background: white; color: #4a5568; border: 1px solid #cbd5e0; }
-  .tab.admin-tab { background: white; color: #744210; border: 1px solid #f6ad55; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .tab { padding: 8px 20px; border-radius: 6px; border: none; cursor: pointer; font-size: 0.95rem; font-weight: 600; transition: all .2s; background: white; color: #4a5568; border: 1px solid #cbd5e0; }
+  .tab.active { background: #2b6cb0; color: white; border-color: #2b6cb0; }
+  .tab.admin-tab { color: #744210; border-color: #f6ad55; }
   .tab.admin-tab.active { background: #c05621; color: white; border-color: #c05621; }
+  .tab.base-tab { font-size: .82rem; padding: 6px 14px; color: #2c7a7b; border-color: #81e6d9; }
+  .tab.base-tab.active { background: #2c7a7b; color: white; border-color: #2c7a7b; }
   .card { background: white; border-radius: 10px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 20px; }
   .card h2 { font-size: 1rem; font-weight: 700; margin-bottom: 14px; color: #2b6cb0; border-bottom: 2px solid #ebf4ff; padding-bottom: 8px; }
-  .card h2.admin { color: #c05621; border-bottom-color: #feebc8; }
   .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .form-group { display: flex; flex-direction: column; gap: 4px; }
   .form-group.full { grid-column: 1 / -1; }
@@ -30,12 +30,12 @@
   .btn { padding: 9px 20px; border-radius: 6px; border: none; cursor: pointer; font-size: 0.92rem; font-weight: 600; transition: all .2s; }
   .btn-primary { background: #2b6cb0; color: white; }
   .btn-primary:hover { background: #2c5282; }
-  .btn-danger { background: #e53e3e; color: white; font-size: 0.8rem; padding: 4px 10px; }
+  .btn-danger { background: #e53e3e; color: white; }
   .btn-success { background: #38a169; color: white; }
   .btn-warning { background: #c05621; color: white; }
   .btn-sm { padding: 5px 12px; font-size: 0.82rem; }
   .filter-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
-  .filter-row .form-group { flex: 1; min-width: 130px; }
+  .filter-row .form-group { flex: 1; min-width: 120px; }
   .feedback-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
   .fb-card { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; border-left: 4px solid #2b6cb0; }
   .fb-card.done { border-left-color: #38a169; opacity: .85; }
@@ -82,58 +82,38 @@
   <h1>フィードバック管理ツール</h1>
 </header>
 <div class="container">
-  <div class="tabs">
+  <!-- メインタブ -->
+  <div class="tabs" id="main-tabs">
     <button class="tab active" onclick="showTab('list')">📋 一覧</button>
     <button class="tab" onclick="showTab('input')">➕ 入力</button>
     <button class="tab" onclick="showTab('settings')">⚙️ 拠点設定</button>
     <button class="tab admin-tab" onclick="showTab('admin')">🔐 管理者</button>
   </div>
-  <div class="tabs" id="base-tabs" style="margin-top:-12px;margin-bottom:20px;"></div>
+  <!-- 拠点タブ -->
+  <div class="tabs" id="base-tabs" style="margin-bottom:20px;"></div>
 
   <!-- 一覧 -->
   <div id="tab-list">
     <div class="card">
       <h2>🔍 絞り込み</h2>
       <div class="filter-row">
-        <div class="form-group">
-          <label>拠点</label>
-          <select id="filter-base" onchange="renderList()"><option value="">すべて</option></select>
-        </div>
-        <div class="form-group">
-          <label>対応者</label>
-          <select id="filter-person" onchange="renderList()"><option value="">すべて</option></select>
-        </div>
-        <div class="form-group">
-          <label>ステータス</label>
+        <div class="form-group"><label>拠点</label><select id="filter-base" onchange="renderList()"><option value="">すべて</option></select></div>
+        <div class="form-group"><label>対応者</label><select id="filter-person" onchange="renderList()"><option value="">すべて</option></select></div>
+        <div class="form-group"><label>ステータス</label>
           <select id="filter-status" onchange="renderList()">
-            <option value="">すべて</option>
-            <option value="未完了">未完了</option>
-            <option value="完了">完了</option>
+            <option value="">すべて</option><option value="未完了">未完了</option><option value="完了">完了</option>
           </select>
         </div>
-        <div class="form-group">
-          <label>日付（から）</label>
-          <input type="date" id="filter-from" onchange="renderList()">
-        </div>
-        <div class="form-group">
-          <label>日付（まで）</label>
-          <input type="date" id="filter-to" onchange="renderList()">
-        </div>
-        <div class="form-group">
-          <label>番号・内容検索</label>
-          <input type="text" id="filter-keyword" placeholder="キーワード" oninput="renderList()">
-        </div>
+        <div class="form-group"><label>日付（から）</label><input type="date" id="filter-from" onchange="renderList()"></div>
+        <div class="form-group"><label>日付（まで）</label><input type="date" id="filter-to" onchange="renderList()"></div>
+        <div class="form-group"><label>番号・内容検索</label><input type="text" id="filter-keyword" placeholder="キーワード" oninput="renderList()"></div>
         <button class="btn btn-sm" style="background:#e2e8f0;color:#4a5568;align-self:flex-end;" onclick="clearFilters()">クリア</button>
         <button class="btn btn-sm btn-primary" style="align-self:flex-end;" onclick="loadAll()">🔄 更新</button>
         <button class="btn btn-sm btn-success" style="align-self:flex-end;" onclick="exportExcel()">📥 Excel出力</button>
       </div>
     </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <span id="result-count" class="count-badge"></span>
-    </div>
-    <div id="feedback-list" class="feedback-grid">
-      <div class="loading"><div class="spinner"></div><br>読み込み中...</div>
-    </div>
+    <div style="margin-bottom:12px;"><span id="result-count" class="count-badge"></span></div>
+    <div id="feedback-list" class="feedback-grid"><div class="loading"><div class="spinner"></div><br>読み込み中...</div></div>
   </div>
 
   <!-- 入力 -->
@@ -141,37 +121,15 @@
     <div class="card">
       <h2>➕ フィードバック入力</h2>
       <div class="form-grid">
-        <div class="form-group">
-          <label>番号 *</label>
-          <input type="text" id="in-num" placeholder="例: FB-001">
+        <div class="form-group"><label>番号 *</label><input type="text" id="in-num" placeholder="例: FB-001"></div>
+        <div class="form-group"><label>日付 *</label><input type="date" id="in-date"></div>
+        <div class="form-group"><label>拠点 *</label><select id="in-base"><option value="">選択してください</option></select></div>
+        <div class="form-group"><label>対応者</label><input type="text" id="in-person" placeholder="例: 田中 太郎"></div>
+        <div class="form-group"><label>ステータス</label>
+          <select id="in-status"><option value="未完了">未完了</option><option value="完了">完了</option></select>
         </div>
-        <div class="form-group">
-          <label>日付 *</label>
-          <input type="date" id="in-date">
-        </div>
-        <div class="form-group">
-          <label>拠点 *</label>
-          <select id="in-base"><option value="">選択してください</option></select>
-        </div>
-        <div class="form-group">
-          <label>対応者</label>
-          <input type="text" id="in-person" placeholder="例: 田中 太郎">
-        </div>
-        <div class="form-group">
-          <label>ステータス</label>
-          <select id="in-status">
-            <option value="未完了">未完了</option>
-            <option value="完了">完了</option>
-          </select>
-        </div>
-        <div class="form-group full">
-          <label>内容 *</label>
-          <textarea id="in-content" placeholder="フィードバックの内容を入力してください"></textarea>
-        </div>
-        <div class="form-group full">
-          <label>画像（複数選択可）</label>
-          <input type="file" id="in-img" accept="image/*" multiple onchange="previewImgs(this)">
-        </div>
+        <div class="form-group full"><label>内容 *</label><textarea id="in-content" placeholder="フィードバックの内容を入力してください"></textarea></div>
+        <div class="form-group full"><label>画像（複数選択可）</label><input type="file" id="in-img" accept="image/*" multiple onchange="previewImgs(this)"></div>
         <div class="form-group full" id="img-preview-wrap" style="display:none">
           <label>画像プレビュー</label>
           <div id="img-preview-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;"></div>
@@ -184,43 +142,7 @@
     </div>
   </div>
 
-  <!-- 拠点別タブ -->
-  <div id="tab-base" style="display:none">
-    <div class="card">
-      <h2 id="base-tab-title">🏢 拠点別フィードバック</h2>
-      <div class="filter-row">
-        <div class="form-group">
-          <label>ステータス</label>
-          <select id="base-filter-status" onchange="renderBaseList()">
-            <option value="">すべて</option>
-            <option value="未完了">未完了</option>
-            <option value="完了">完了</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>対応者</label>
-          <select id="base-filter-person" onchange="renderBaseList()"><option value="">すべて</option></select>
-        </div>
-        <div class="form-group">
-          <label>日付（から）</label>
-          <input type="date" id="base-filter-from" onchange="renderBaseList()">
-        </div>
-        <div class="form-group">
-          <label>日付（まで）</label>
-          <input type="date" id="base-filter-to" onchange="renderBaseList()">
-        </div>
-        <div class="form-group">
-          <label>キーワード</label>
-          <input type="text" id="base-filter-kw" placeholder="番号・内容" oninput="renderBaseList()">
-        </div>
-        <button class="btn btn-sm" style="background:#e2e8f0;color:#4a5568;align-self:flex-end;" onclick="clearBaseFilters()">クリア</button>
-      </div>
-    </div>
-    <div style="margin-bottom:12px;">
-      <span id="base-result-count" class="count-badge"></span>
-    </div>
-    <div id="base-feedback-list" class="feedback-grid"></div>
-  </div>
+  <!-- 拠点設定 -->
   <div id="tab-settings" style="display:none">
     <div class="card">
       <h2>⚙️ 拠点の管理</h2>
@@ -230,6 +152,27 @@
       </div>
       <div class="base-list" id="base-list"></div>
     </div>
+  </div>
+
+  <!-- 拠点別 -->
+  <div id="tab-base" style="display:none">
+    <div class="card">
+      <h2 id="base-tab-title">🏢 拠点別フィードバック</h2>
+      <div class="filter-row">
+        <div class="form-group"><label>ステータス</label>
+          <select id="bf-status" onchange="renderBaseList()">
+            <option value="">すべて</option><option value="未完了">未完了</option><option value="完了">完了</option>
+          </select>
+        </div>
+        <div class="form-group"><label>対応者</label><select id="bf-person" onchange="renderBaseList()"><option value="">すべて</option></select></div>
+        <div class="form-group"><label>日付（から）</label><input type="date" id="bf-from" onchange="renderBaseList()"></div>
+        <div class="form-group"><label>日付（まで）</label><input type="date" id="bf-to" onchange="renderBaseList()"></div>
+        <div class="form-group"><label>キーワード</label><input type="text" id="bf-kw" placeholder="番号・内容" oninput="renderBaseList()"></div>
+        <button class="btn btn-sm" style="background:#e2e8f0;color:#4a5568;align-self:flex-end;" onclick="clearBaseFilters()">クリア</button>
+      </div>
+    </div>
+    <div style="margin-bottom:12px;"><span id="base-result-count" class="count-badge"></span></div>
+    <div id="base-feedback-list" class="feedback-grid"></div>
   </div>
 
   <!-- 管理者 -->
@@ -252,22 +195,10 @@
       </div>
       <div class="stat-grid" id="stat-cards"></div>
       <div class="chart-grid">
-        <div class="chart-box">
-          <h3>👤 対応者別 件数</h3>
-          <canvas id="chart-person"></canvas>
-        </div>
-        <div class="chart-box">
-          <h3>✅ ステータス別 件数</h3>
-          <canvas id="chart-status"></canvas>
-        </div>
-        <div class="chart-box">
-          <h3>🏢 拠点別 件数</h3>
-          <canvas id="chart-base"></canvas>
-        </div>
-        <div class="chart-box">
-          <h3>📅 日付別 件数（直近30日）</h3>
-          <canvas id="chart-date"></canvas>
-        </div>
+        <div class="chart-box"><h3>👤 対応者別 件数</h3><canvas id="chart-person"></canvas></div>
+        <div class="chart-box"><h3>✅ ステータス別 件数</h3><canvas id="chart-status"></canvas></div>
+        <div class="chart-box"><h3>🏢 拠点別 件数</h3><canvas id="chart-base"></canvas></div>
+        <div class="chart-box"><h3>📅 日付別 件数（直近30日）</h3><canvas id="chart-date"></canvas></div>
       </div>
     </div>
   </div>
@@ -280,288 +211,297 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const SB_URL = 'https://kcahlszfdjwhkflspycq.supabase.co';
-const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjYWhsc3pmZGp3aGtmbHNweWNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNTYxMTgsImV4cCI6MjA5NDczMjExOH0.sSBc8zUjp-lGQ_i7JucKV9dQwr7_Lwz-XMBFWmdKW-Y';
-const ADMIN_PW = 'agekke8206';
-const HEADERS = { 'Content-Type': 'application/json', 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY };
+var SB_URL = 'https://kcahlszfdjwhkflspycq.supabase.co';
+var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjYWhsc3pmZGp3aGtmbHNweWNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNTYxMTgsImV4cCI6MjA5NDczMjExOH0.sSBc8zUjp-lGQ_i7JucKV9dQwr7_Lwz-XMBFWmdKW-Y';
+var ADMIN_PW = 'agekke8206';
+var HEADERS = { 'Content-Type': 'application/json', 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY };
 
-let feedbacks = [], bases = [], editId = null, charts = {}, currentBase = '';
+var feedbacks = [], bases = [], editId = null, charts = {}, currentBase = '';
 window._pendingImgs = [];
 
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function toast(msg, d=2500) { const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),d); }
+function toast(msg, d) { d = d||2500; var el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); setTimeout(function(){ el.classList.remove('show'); }, d); }
 
-async function sbGet(table, params='') {
-  const res = await fetch(`${SB_URL}/rest/v1/${table}?${params}`, { headers: { ...HEADERS, 'Prefer': 'return=representation' } });
-  return res.json();
+function sbGet(table, params) {
+  params = params||'';
+  return fetch(SB_URL+'/rest/v1/'+table+'?'+params, { headers: Object.assign({}, HEADERS, {'Prefer':'return=representation'}) }).then(function(r){ return r.json(); });
 }
-async function sbPost(table, body) {
-  const res = await fetch(`${SB_URL}/rest/v1/${table}`, { method: 'POST', headers: { ...HEADERS, 'Prefer': 'return=representation' }, body: JSON.stringify(body) });
-  return res.json();
+function sbPost(table, body) {
+  return fetch(SB_URL+'/rest/v1/'+table, { method:'POST', headers: Object.assign({}, HEADERS, {'Prefer':'return=representation'}), body: JSON.stringify(body) }).then(function(r){ return r.json(); });
 }
-async function sbPatch(table, id, body) {
-  const res = await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`, { method: 'PATCH', headers: { ...HEADERS, 'Prefer': 'return=representation' }, body: JSON.stringify(body) });
-  return res.json();
+function sbPatch(table, id, body) {
+  return fetch(SB_URL+'/rest/v1/'+table+'?id=eq.'+id, { method:'PATCH', headers: Object.assign({}, HEADERS, {'Prefer':'return=representation'}), body: JSON.stringify(body) }).then(function(r){ return r.json(); });
 }
-async function sbDelete(table, id) {
-  await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`, { method: 'DELETE', headers: HEADERS });
+function sbDelete(table, id) {
+  return fetch(SB_URL+'/rest/v1/'+table+'?id=eq.'+id, { method:'DELETE', headers: HEADERS });
 }
-async function uploadImage(base64, filename) {
-  const blob = await fetch(base64).then(r => r.blob());
-  const path = `${Date.now()}_${filename}`;
-  const res = await fetch(`${SB_URL}/storage/v1/object/feedback-images/${path}`, {
-    method: 'POST', headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': blob.type }, body: blob
+function uploadImage(base64, filename) {
+  return fetch(base64).then(function(r){ return r.blob(); }).then(function(blob) {
+    var path = Date.now()+'_'+filename;
+    return fetch(SB_URL+'/storage/v1/object/feedback-images/'+path, {
+      method:'POST', headers:{ 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY, 'Content-Type':blob.type }, body:blob
+    }).then(function(res) {
+      if(!res.ok) throw new Error('画像アップロード失敗');
+      return SB_URL+'/storage/v1/object/public/feedback-images/'+path;
+    });
   });
-  if(!res.ok) throw new Error('画像アップロード失敗');
-  return `${SB_URL}/storage/v1/object/public/feedback-images/${path}`;
 }
 
-async function loadAll() {
+function loadAll() {
   document.getElementById('feedback-list').innerHTML = '<div class="loading"><div class="spinner"></div><br>読み込み中...</div>';
-  try {
-    const [fbData, baseData] = await Promise.all([sbGet('feedbacks','order=date.desc'), sbGet('bases','order=id.asc')]);
-    feedbacks = (fbData||[]).map(f => ({ ...f, imgs: f.imgs ? JSON.parse(f.imgs) : [], status: f.status||'未完了' }));
-    bases = (baseData||[]).map(b => b.name);
+  return Promise.all([sbGet('feedbacks','order=date.desc'), sbGet('bases','order=id.asc')]).then(function(results) {
+    var fbData = results[0], baseData = results[1];
+    feedbacks = (fbData||[]).map(function(f) { return Object.assign({}, f, { imgs: f.imgs ? JSON.parse(f.imgs) : [], status: f.status||'未完了' }); });
+    bases = (baseData||[]).map(function(b) { return b.name; });
     refreshBaseSelects();
     refreshPersonFilter();
+    refreshBaseTabs();
     renderList();
-  } catch(e) {
+  }).catch(function() {
     document.getElementById('feedback-list').innerHTML = '<div class="empty">⚠️ データの読み込みに失敗しました。</div>';
-  }
+  });
 }
 
 function refreshBaseSelects() {
-  const opts = '<option value="">選択してください</option>' + bases.map(b=>`<option value="${b}">${b}</option>`).join('');
+  var opts = '<option value="">選択してください</option>' + bases.map(function(b){ return '<option value="'+esc(b)+'">'+esc(b)+'</option>'; }).join('');
   document.getElementById('in-base').innerHTML = opts;
-  const fOpts = '<option value="">すべて</option>' + bases.map(b=>`<option value="${b}">${b}</option>`).join('');
+  var fOpts = '<option value="">すべて</option>' + bases.map(function(b){ return '<option value="'+esc(b)+'">'+esc(b)+'</option>'; }).join('');
   document.getElementById('filter-base').innerHTML = fOpts;
-  // 拠点タブを更新
-  const tabEl = document.getElementById('base-tabs');
-  tabEl.innerHTML = bases.map(b =>
-    `<button class="tab" style="font-size:.82rem;padding:6px 14px;" onclick="showBaseTab('${b}')" id="btab-${encodeURIComponent(b)}">🏢 ${esc(b)}</button>`
-  ).join('');
 }
 
 function refreshPersonFilter() {
-  const persons = [...new Set(feedbacks.map(f => f.person).filter(Boolean))].sort();
-  const el = document.getElementById('filter-person');
-  const cur = el.value;
-  el.innerHTML = '<option value="">すべて</option>' + persons.map(p=>`<option value="${p}">${p}</option>`).join('');
+  var persons = [];
+  feedbacks.forEach(function(f) { if(f.person && persons.indexOf(f.person)===-1) persons.push(f.person); });
+  persons.sort();
+  var el = document.getElementById('filter-person');
+  var cur = el.value;
+  el.innerHTML = '<option value="">すべて</option>' + persons.map(function(p){ return '<option value="'+esc(p)+'">'+esc(p)+'</option>'; }).join('');
   if(cur) el.value = cur;
+}
+
+function refreshBaseTabs() {
+  var el = document.getElementById('base-tabs');
+  el.innerHTML = bases.map(function(b) {
+    return '<button class="tab base-tab" onclick="showBaseTab(\''+b.replace(/'/g,"\\'")+'\')" id="btab-'+encodeURIComponent(b)+'">🏢 '+esc(b)+'</button>';
+  }).join('');
+}
+
+function renderBases() {
+  var el = document.getElementById('base-list');
+  if(!bases.length) { el.innerHTML = '<span style="color:#a0aec0;font-size:.85rem;">拠点が登録されていません</span>'; return; }
+  el.innerHTML = bases.map(function(b, i) {
+    return '<div class="base-tag"><span>'+esc(b)+'</span><button class="btn btn-danger" style="padding:2px 8px;font-size:.75rem;" onclick="removeBase('+i+')">削除</button></div>';
+  }).join('');
+}
+
+function addBase() {
+  var v = document.getElementById('new-base-name').value.trim();
+  if(!v) return alert('拠点名を入力してください');
+  if(bases.indexOf(v)!==-1) return alert('同じ名前の拠点がすでに存在します');
+  sbPost('bases', { name: v }).then(function() {
+    bases.push(v);
+    document.getElementById('new-base-name').value = '';
+    renderBases(); refreshBaseSelects(); refreshBaseTabs();
+    toast('拠点を追加しました');
+  });
+}
+
+function removeBase(i) {
+  if(!confirm('「'+bases[i]+'」を削除しますか？')) return;
+  var name = bases[i];
+  sbGet('bases', 'name=eq.'+encodeURIComponent(name)).then(function(data) {
+    if(data && data[0]) return sbDelete('bases', data[0].id);
+  }).then(function() {
+    bases.splice(i, 1);
+    renderBases(); refreshBaseSelects(); refreshBaseTabs();
+    toast('拠点を削除しました');
+  });
+}
+
+function makeFbCard(f) {
+  return '<div class="fb-card '+(f.status==='完了'?'done':'')+'">'
+    +'<div class="fb-card-header"><span class="fb-num"># '+esc(f.num)+'</span><span class="fb-date">'+f.date+'</span></div>'
+    +'<div class="fb-card-body">'
+    +'<span class="fb-base">'+esc(f.base)+'</span>'
+    +(f.person?'<span style="display:inline-block;background:#e9d8fd;color:#553c9a;border-radius:4px;font-size:.75rem;padding:2px 8px;margin-left:4px;margin-bottom:8px;">👤 '+esc(f.person)+'</span>':'')
+    +'<span onclick="toggleStatus(\''+f.id+'\')" style="display:inline-block;cursor:pointer;border-radius:4px;font-size:.75rem;padding:2px 8px;margin-left:4px;margin-bottom:8px;background:'+(f.status==='完了'?'#c6f6d5':'#fed7d7')+';color:'+(f.status==='完了'?'#276749':'#9b2c2c')+'">'+(f.status==='完了'?'✅ 完了':'⏳ 未完了')+'</span>'
+    +'<div class="fb-content">'+esc(f.content)+'</div>'
+    +(f.imgs&&f.imgs.length?'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">'+f.imgs.map(function(img,i){ return '<img class="fb-img" src="'+img+'" alt="画像'+(i+1)+'" onclick="openModal(\''+f.id+'\','+i+')">'; }).join('')+'</div>':'')
+    +'<div class="fb-actions">'
+    +'<button class="btn btn-sm" style="background:#ecc94b;color:#744210;" onclick="editFeedback(\''+f.id+'\')">✏️ 編集</button>'
+    +'<button class="btn btn-sm btn-danger" onclick="deleteFeedback(\''+f.id+'\')">🗑️ 削除</button>'
+    +'</div></div></div>';
+}
+
+function renderList() {
+  var base=document.getElementById('filter-base').value;
+  var person=document.getElementById('filter-person').value;
+  var status=document.getElementById('filter-status').value;
+  var from=document.getElementById('filter-from').value;
+  var to=document.getElementById('filter-to').value;
+  var kw=document.getElementById('filter-keyword').value.toLowerCase();
+  var list = feedbacks.filter(function(f) {
+    if(base && f.base!==base) return false;
+    if(person && (f.person||'')!==person) return false;
+    if(status && (f.status||'未完了')!==status) return false;
+    if(from && f.date<from) return false;
+    if(to && f.date>to) return false;
+    if(kw && !(f.num.toLowerCase().includes(kw)||f.content.toLowerCase().includes(kw))) return false;
+    return true;
+  }).sort(function(a,b){ return b.date.localeCompare(a.date); });
+  document.getElementById('result-count').textContent = list.length+' 件';
+  var el = document.getElementById('feedback-list');
+  if(!list.length) { el.innerHTML='<div class="empty">📭 該当するフィードバックがありません</div>'; return; }
+  el.innerHTML = list.map(makeFbCard).join('');
 }
 
 function showBaseTab(base) {
   currentBase = base;
-  // メインタブの選択を外す
-  document.querySelectorAll('.tabs:first-child .tab').forEach(el => el.classList.remove('active'));
-  // 拠点タブのハイライト
-  document.querySelectorAll('#base-tabs .tab').forEach(el => el.classList.remove('active'));
-  const btn = document.getElementById('btab-' + encodeURIComponent(base));
+  document.querySelectorAll('#main-tabs .tab').forEach(function(el){ el.classList.remove('active'); });
+  document.querySelectorAll('#base-tabs .tab').forEach(function(el){ el.classList.remove('active'); });
+  var btn = document.getElementById('btab-'+encodeURIComponent(base));
   if(btn) btn.classList.add('active');
-  // 各タブコンテンツ非表示
-  ['list','input','settings','admin','base'].forEach(id => {
-    document.getElementById('tab-'+id).style.display = id==='base' ? '' : 'none';
-  });
-  document.getElementById('base-tab-title').textContent = `🏢 ${base} のフィードバック`;
-  // 対応者フィルター更新
-  const persons = [...new Set(feedbacks.filter(f=>f.base===base).map(f=>f.person).filter(Boolean))].sort();
-  document.getElementById('base-filter-person').innerHTML = '<option value="">すべて</option>' + persons.map(p=>`<option value="${p}">${p}</option>`).join('');
-  clearBaseFilters(false);
+  ['list','input','settings','admin'].forEach(function(id){ document.getElementById('tab-'+id).style.display='none'; });
+  document.getElementById('tab-base').style.display='';
+  document.getElementById('base-tab-title').textContent = '🏢 '+base+' のフィードバック';
+  var persons = [];
+  feedbacks.forEach(function(f){ if(f.base===base && f.person && persons.indexOf(f.person)===-1) persons.push(f.person); });
+  persons.sort();
+  document.getElementById('bf-person').innerHTML = '<option value="">すべて</option>' + persons.map(function(p){ return '<option value="'+esc(p)+'">'+esc(p)+'</option>'; }).join('');
+  document.getElementById('bf-status').value='';
+  document.getElementById('bf-person').value='';
+  document.getElementById('bf-from').value='';
+  document.getElementById('bf-to').value='';
+  document.getElementById('bf-kw').value='';
   renderBaseList();
 }
 
 function renderBaseList() {
-  const status = document.getElementById('base-filter-status').value;
-  const person = document.getElementById('base-filter-person').value;
-  const from = document.getElementById('base-filter-from').value;
-  const to = document.getElementById('base-filter-to').value;
-  const kw = document.getElementById('base-filter-kw').value.toLowerCase();
-  let list = feedbacks.filter(f => {
-    if(f.base !== currentBase) return false;
-    if(status && (f.status||'未完了') !== status) return false;
-    if(person && (f.person||'') !== person) return false;
-    if(from && f.date < from) return false;
-    if(to && f.date > to) return false;
+  var status=document.getElementById('bf-status').value;
+  var person=document.getElementById('bf-person').value;
+  var from=document.getElementById('bf-from').value;
+  var to=document.getElementById('bf-to').value;
+  var kw=document.getElementById('bf-kw').value.toLowerCase();
+  var list = feedbacks.filter(function(f) {
+    if(f.base!==currentBase) return false;
+    if(status && (f.status||'未完了')!==status) return false;
+    if(person && (f.person||'')!==person) return false;
+    if(from && f.date<from) return false;
+    if(to && f.date>to) return false;
     if(kw && !(f.num.toLowerCase().includes(kw)||f.content.toLowerCase().includes(kw))) return false;
     return true;
-  }).sort((a,b) => b.date.localeCompare(a.date));
-  document.getElementById('base-result-count').textContent = `${list.length} 件`;
-  const el = document.getElementById('base-feedback-list');
-  if(!list.length) { el.innerHTML = '<div class="empty">📭 該当するフィードバックがありません</div>'; return; }
-  el.innerHTML = list.map(f => `
-    <div class="fb-card ${f.status==='完了'?'done':''}">
-      <div class="fb-card-header">
-        <span class="fb-num"># ${esc(f.num)}</span>
-        <span class="fb-date">${f.date}</span>
-      </div>
-      <div class="fb-card-body">
-        <span class="fb-base">${esc(f.base)}</span>
-        ${f.person?`<span style="display:inline-block;background:#e9d8fd;color:#553c9a;border-radius:4px;font-size:.75rem;padding:2px 8px;margin-left:4px;margin-bottom:8px;">👤 ${esc(f.person)}</span>`:''}
-        <span onclick="toggleStatus('${f.id}')" style="display:inline-block;cursor:pointer;border-radius:4px;font-size:.75rem;padding:2px 8px;margin-left:4px;margin-bottom:8px;background:${f.status==='完了'?'#c6f6d5':'#fed7d7'};color:${f.status==='完了'?'#276749':'#9b2c2c'};">${f.status==='完了'?'✅ 完了':'⏳ 未完了'}</span>
-        <div class="fb-content">${esc(f.content)}</div>
-        ${f.imgs&&f.imgs.length?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">${f.imgs.map((img,i)=>`<img class="fb-img" src="${img}" alt="画像${i+1}" onclick="openModal('${f.id}',${i})">`).join('')}</div>`:''}
-        <div class="fb-actions">
-          <button class="btn btn-sm" style="background:#ecc94b;color:#744210;" onclick="editFeedback('${f.id}')">✏️ 編集</button>
-          <button class="btn btn-sm btn-danger" onclick="deleteFeedback('${f.id}')">🗑️ 削除</button>
-        </div>
-      </div>
-    </div>`).join('');
+  }).sort(function(a,b){ return b.date.localeCompare(a.date); });
+  document.getElementById('base-result-count').textContent = list.length+' 件';
+  var el = document.getElementById('base-feedback-list');
+  if(!list.length) { el.innerHTML='<div class="empty">📭 該当するフィードバックがありません</div>'; return; }
+  el.innerHTML = list.map(makeFbCard).join('');
 }
 
-function clearBaseFilters(doRender) {
-  if(doRender === undefined) doRender = true;
-  ['base-filter-status','base-filter-person','base-filter-from','base-filter-to','base-filter-kw'].forEach(id=>{document.getElementById(id).value='';});
-  if(doRender) renderBaseList();
-}
-  const el = document.getElementById('base-list');
-  if(!bases.length) { el.innerHTML = '<span style="color:#a0aec0;font-size:.85rem;">拠点が登録されていません</span>'; return; }
-  el.innerHTML = bases.map((b,i) => `<div class="base-tag"><span>${esc(b)}</span><button class="btn btn-danger" style="padding:2px 8px;font-size:.75rem;" onclick="removeBase(${i})">削除</button></div>`).join('');
-}
-
-async function addBase() {
-  const v = document.getElementById('new-base-name').value.trim();
-  if(!v) return alert('拠点名を入力してください');
-  if(bases.includes(v)) return alert('同じ名前の拠点がすでに存在します');
-  await sbPost('bases', { name: v });
-  bases.push(v);
-  document.getElementById('new-base-name').value = '';
-  renderBases(); refreshBaseSelects();
-  toast('拠点を追加しました');
+function clearBaseFilters() {
+  document.getElementById('bf-status').value='';
+  document.getElementById('bf-person').value='';
+  document.getElementById('bf-from').value='';
+  document.getElementById('bf-to').value='';
+  document.getElementById('bf-kw').value='';
+  renderBaseList();
 }
 
-async function removeBase(i) {
-  if(!confirm(`「${bases[i]}」を削除しますか？`)) return;
-  const baseData = await sbGet('bases', `name=eq.${encodeURIComponent(bases[i])}`);
-  if(baseData && baseData[0]) await sbDelete('bases', baseData[0].id);
-  bases.splice(i, 1);
-  renderBases(); refreshBaseSelects();
-  toast('拠点を削除しました');
-}
-
-function renderList() {
-  const base = document.getElementById('filter-base').value;
-  const person = document.getElementById('filter-person').value;
-  const status = document.getElementById('filter-status').value;
-  const from = document.getElementById('filter-from').value;
-  const to = document.getElementById('filter-to').value;
-  const kw = document.getElementById('filter-keyword').value.toLowerCase();
-  let list = feedbacks.filter(f => {
-    if(base && f.base !== base) return false;
-    if(person && (f.person||'') !== person) return false;
-    if(status && (f.status||'未完了') !== status) return false;
-    if(from && f.date < from) return false;
-    if(to && f.date > to) return false;
-    if(kw && !(f.num.toLowerCase().includes(kw)||f.content.toLowerCase().includes(kw))) return false;
-    return true;
-  }).sort((a,b) => b.date.localeCompare(a.date));
-  document.getElementById('result-count').textContent = `${list.length} 件`;
-  const el = document.getElementById('feedback-list');
-  if(!list.length) { el.innerHTML = '<div class="empty">📭 該当するフィードバックがありません</div>'; return; }
-  el.innerHTML = list.map(f => `
-    <div class="fb-card ${f.status==='完了'?'done':''}">
-      <div class="fb-card-header">
-        <span class="fb-num"># ${esc(f.num)}</span>
-        <span class="fb-date">${f.date}</span>
-      </div>
-      <div class="fb-card-body">
-        <span class="fb-base">${esc(f.base)}</span>
-        ${f.person?`<span style="display:inline-block;background:#e9d8fd;color:#553c9a;border-radius:4px;font-size:.75rem;padding:2px 8px;margin-left:4px;margin-bottom:8px;">👤 ${esc(f.person)}</span>`:''}
-        <span onclick="toggleStatus('${f.id}')" style="display:inline-block;cursor:pointer;border-radius:4px;font-size:.75rem;padding:2px 8px;margin-left:4px;margin-bottom:8px;background:${f.status==='完了'?'#c6f6d5':'#fed7d7'};color:${f.status==='完了'?'#276749':'#9b2c2c'};">${f.status==='完了'?'✅ 完了':'⏳ 未完了'}</span>
-        <div class="fb-content">${esc(f.content)}</div>
-        ${f.imgs&&f.imgs.length?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">${f.imgs.map((img,i)=>`<img class="fb-img" src="${img}" alt="画像${i+1}" onclick="openModal('${f.id}',${i})">`).join('')}</div>`:''}
-        <div class="fb-actions">
-          <button class="btn btn-sm" style="background:#ecc94b;color:#744210;" onclick="editFeedback('${f.id}')">✏️ 編集</button>
-          <button class="btn btn-sm btn-danger" onclick="deleteFeedback('${f.id}')">🗑️ 削除</button>
-        </div>
-      </div>
-    </div>`).join('');
-}
-
-async function saveFeedback() {
-  const num = document.getElementById('in-num').value.trim();
-  const date = document.getElementById('in-date').value;
-  const base = document.getElementById('in-base').value;
-  const content = document.getElementById('in-content').value.trim();
+function saveFeedback() {
+  var num=document.getElementById('in-num').value.trim();
+  var date=document.getElementById('in-date').value;
+  var base=document.getElementById('in-base').value;
+  var content=document.getElementById('in-content').value.trim();
   if(!num||!date||!base||!content) return alert('番号・日付・拠点・内容は必須です');
-  const person = document.getElementById('in-person').value.trim();
-  const status = document.getElementById('in-status').value;
-  const btn = document.getElementById('save-btn');
-  btn.disabled = true;
-  try {
-    const imgUrls = [];
-    for(let i = 0; i < window._pendingImgs.length; i++) {
-      const src = window._pendingImgs[i];
-      if(src.startsWith('http')) { imgUrls.push(src); continue; }
-      btn.textContent = `画像アップロード中... (${i+1}/${window._pendingImgs.length})`;
-      imgUrls.push(await uploadImage(src, `img${i}.jpg`));
-    }
-    btn.textContent = '保存中...';
-    const payload = { num, date, base, person, content, status, imgs: JSON.stringify(imgUrls) };
-    if(editId !== null) {
-      await sbPatch('feedbacks', editId, payload);
-      const idx = feedbacks.findIndex(f=>String(f.id)===String(editId));
-      if(idx>-1) feedbacks[idx] = { ...feedbacks[idx], ...payload, imgs: imgUrls };
+  var person=document.getElementById('in-person').value.trim();
+  var status=document.getElementById('in-status').value;
+  var btn=document.getElementById('save-btn');
+  btn.disabled=true;
+  var imgs = window._pendingImgs.slice();
+  var imgUrls = [];
+  function uploadNext(i) {
+    if(i>=imgs.length) return Promise.resolve();
+    var src=imgs[i];
+    if(src.startsWith('http')){ imgUrls.push(src); return uploadNext(i+1); }
+    btn.textContent='画像アップロード中... ('+(i+1)+'/'+imgs.length+')';
+    return uploadImage(src,'img'+i+'.jpg').then(function(url){ imgUrls.push(url); return uploadNext(i+1); });
+  }
+  uploadNext(0).then(function() {
+    btn.textContent='保存中...';
+    var payload={ num:num, date:date, base:base, person:person, content:content, status:status, imgs:JSON.stringify(imgUrls) };
+    var p;
+    if(editId!==null) {
+      p = sbPatch('feedbacks', editId, payload).then(function() {
+        var idx=feedbacks.findIndex(function(f){ return String(f.id)===String(editId); });
+        if(idx>-1) feedbacks[idx]=Object.assign({},feedbacks[idx],payload,{imgs:imgUrls});
+      });
     } else {
-      const id = Date.now();
-      await sbPost('feedbacks', { id, ...payload });
-      feedbacks.unshift({ id, ...payload, imgs: imgUrls });
+      var id=Date.now();
+      p = sbPost('feedbacks', Object.assign({id:id},payload)).then(function() {
+        feedbacks.unshift(Object.assign({id:id},payload,{imgs:imgUrls}));
+      });
     }
+    return p;
+  }).then(function() {
     refreshPersonFilter();
     resetForm();
     toast('✅ 保存しました！');
     showTab('list');
-  } catch(e) {
-    alert('保存に失敗しました。\n' + e.message);
-  } finally {
-    btn.textContent = '💾 保存'; btn.disabled = false;
-  }
+  }).catch(function(e) {
+    alert('保存に失敗しました。\n'+e.message);
+  }).then(function() {
+    btn.textContent='💾 保存'; btn.disabled=false;
+  });
 }
 
-async function deleteFeedback(id) {
+function deleteFeedback(id) {
   if(!confirm('このフィードバックを削除しますか？')) return;
-  await sbDelete('feedbacks', id);
-  feedbacks = feedbacks.filter(f=>String(f.id)!==String(id));
-  refreshPersonFilter(); renderList();
-  toast('🗑️ 削除しました');
+  sbDelete('feedbacks', id).then(function() {
+    feedbacks = feedbacks.filter(function(f){ return String(f.id)!==String(id); });
+    refreshPersonFilter(); renderList();
+    if(document.getElementById('tab-base').style.display!=='none') renderBaseList();
+    toast('🗑️ 削除しました');
+  });
 }
 
-async function toggleStatus(id) {
-  const f = feedbacks.find(f=>String(f.id)===String(id));
+function toggleStatus(id) {
+  var f = feedbacks.find(function(f){ return String(f.id)===String(id); });
   if(!f) return;
-  const newStatus = (f.status||'未完了')==='未完了'?'完了':'未完了';
-  await sbPatch('feedbacks', id, { status: newStatus });
-  f.status = newStatus;
-  renderList();
-  toast(newStatus==='完了'?'✅ 完了にしました':'⏳ 未完了に戻しました');
+  var newStatus = (f.status||'未完了')==='未完了'?'完了':'未完了';
+  sbPatch('feedbacks', id, { status: newStatus }).then(function() {
+    f.status=newStatus;
+    renderList();
+    if(document.getElementById('tab-base').style.display!=='none') renderBaseList();
+    toast(newStatus==='完了'?'✅ 完了にしました':'⏳ 未完了に戻しました');
+  });
 }
 
 function editFeedback(id) {
-  const f = feedbacks.find(f=>String(f.id)===String(id));
+  var f = feedbacks.find(function(f){ return String(f.id)===String(id); });
   if(!f) return;
   showTab('input');
-  setTimeout(()=>{
-    document.getElementById('in-num').value = f.num;
-    document.getElementById('in-date').value = f.date;
-    document.getElementById('in-base').value = f.base;
-    document.getElementById('in-content').value = f.content;
-    document.getElementById('in-person').value = f.person||'';
-    document.getElementById('in-status').value = f.status||'未完了';
-    window._pendingImgs = f.imgs ? [...f.imgs] : [];
-    const list = document.getElementById('img-preview-list');
-    list.innerHTML = '';
-    (f.imgs||[]).forEach((img,i) => {
-      const div = document.createElement('div');
-      div.style.cssText = 'position:relative;display:inline-block;';
-      div.innerHTML = `<img src="${img}" style="height:100px;border-radius:6px;object-fit:cover;"><button onclick="removePreviewImg(${i},this.parentNode)" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:white;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:1;">✕</button>`;
+  setTimeout(function() {
+    document.getElementById('in-num').value=f.num;
+    document.getElementById('in-date').value=f.date;
+    document.getElementById('in-base').value=f.base;
+    document.getElementById('in-content').value=f.content;
+    document.getElementById('in-person').value=f.person||'';
+    document.getElementById('in-status').value=f.status||'未完了';
+    window._pendingImgs=f.imgs?f.imgs.slice():[];
+    var list=document.getElementById('img-preview-list');
+    list.innerHTML='';
+    (f.imgs||[]).forEach(function(img,i) {
+      var div=document.createElement('div');
+      div.style.cssText='position:relative;display:inline-block;';
+      div.innerHTML='<img src="'+img+'" style="height:100px;border-radius:6px;object-fit:cover;"><button onclick="removePreviewImg('+i+',this.parentNode)" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:white;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:1;">✕</button>';
       list.appendChild(div);
     });
     if(f.imgs&&f.imgs.length) document.getElementById('img-preview-wrap').style.display='';
-    editId = id;
+    editId=id;
   }, 50);
 }
 
 function resetForm() {
-  ['in-num','in-date','in-content','in-person'].forEach(id=>document.getElementById(id).value='');
+  ['in-num','in-date','in-content','in-person'].forEach(function(id){ document.getElementById(id).value=''; });
   document.getElementById('in-base').value='';
   document.getElementById('in-status').value='未完了';
   document.getElementById('in-img').value='';
@@ -573,19 +513,18 @@ function resetForm() {
 }
 
 function previewImgs(input) {
-  const files = Array.from(input.files);
+  var files=Array.from(input.files);
   if(!files.length) return;
-  window._pendingImgs = window._pendingImgs||[];
   document.getElementById('img-preview-wrap').style.display='';
-  const list = document.getElementById('img-preview-list');
-  files.forEach(file => {
-    const reader = new FileReader();
-    reader.onload = e => {
+  var list=document.getElementById('img-preview-list');
+  files.forEach(function(file) {
+    var reader=new FileReader();
+    reader.onload=function(e) {
       window._pendingImgs.push(e.target.result);
-      const idx = window._pendingImgs.length-1;
-      const div = document.createElement('div');
+      var idx=window._pendingImgs.length-1;
+      var div=document.createElement('div');
       div.style.cssText='position:relative;display:inline-block;';
-      div.innerHTML=`<img src="${e.target.result}" style="height:100px;border-radius:6px;object-fit:cover;"><button onclick="removePreviewImg(${idx},this.parentNode)" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:white;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:1;">✕</button>`;
+      div.innerHTML='<img src="'+e.target.result+'" style="height:100px;border-radius:6px;object-fit:cover;"><button onclick="removePreviewImg('+idx+',this.parentNode)" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:white;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:1;">✕</button>';
       list.appendChild(div);
     };
     reader.readAsDataURL(file);
@@ -595,11 +534,12 @@ function previewImgs(input) {
 function removePreviewImg(idx, el) {
   window._pendingImgs.splice(idx,1);
   el.remove();
-  document.querySelectorAll('#img-preview-list button').forEach((btn,i)=>btn.setAttribute('onclick',`removePreviewImg(${i},this.parentNode)`));
+  document.querySelectorAll('#img-preview-list button').forEach(function(btn,i){ btn.setAttribute('onclick','removePreviewImg('+i+',this.parentNode)'); });
 }
 
-function openModal(id, imgIdx=0) {
-  const f = feedbacks.find(f=>String(f.id)===String(id));
+function openModal(id, imgIdx) {
+  imgIdx=imgIdx||0;
+  var f=feedbacks.find(function(f){ return String(f.id)===String(id); });
   if(!f||!f.imgs||!f.imgs.length) return;
   document.getElementById('modal-img').src=f.imgs[imgIdx];
   document.getElementById('img-modal').classList.add('open');
@@ -607,15 +547,15 @@ function openModal(id, imgIdx=0) {
 function closeModal() { document.getElementById('img-modal').classList.remove('open'); }
 
 function clearFilters() {
-  ['filter-base','filter-person','filter-status','filter-from','filter-to','filter-keyword'].forEach(id=>{document.getElementById(id).value='';});
+  ['filter-base','filter-person','filter-status','filter-from','filter-to','filter-keyword'].forEach(function(id){ document.getElementById(id).value=''; });
   renderList();
 }
 
 function exportExcel() {
-  const base=document.getElementById('filter-base').value, person=document.getElementById('filter-person').value;
-  const status=document.getElementById('filter-status').value, from=document.getElementById('filter-from').value;
-  const to=document.getElementById('filter-to').value, kw=document.getElementById('filter-keyword').value.toLowerCase();
-  let list=feedbacks.filter(f=>{
+  var base=document.getElementById('filter-base').value, person=document.getElementById('filter-person').value;
+  var status=document.getElementById('filter-status').value, from=document.getElementById('filter-from').value;
+  var to=document.getElementById('filter-to').value, kw=document.getElementById('filter-keyword').value.toLowerCase();
+  var list=feedbacks.filter(function(f) {
     if(base&&f.base!==base)return false;
     if(person&&(f.person||'')!==person)return false;
     if(status&&(f.status||'未完了')!==status)return false;
@@ -623,23 +563,24 @@ function exportExcel() {
     if(to&&f.date>to)return false;
     if(kw&&!(f.num.toLowerCase().includes(kw)||f.content.toLowerCase().includes(kw)))return false;
     return true;
-  }).sort((a,b)=>b.date.localeCompare(a.date));
+  }).sort(function(a,b){ return b.date.localeCompare(a.date); });
   if(!list.length) return alert('出力するデータがありません');
-  const BOM='\uFEFF';
-  const headers=['番号','日付','拠点','対応者','ステータス','内容','画像URL'];
-  const rows=list.map(f=>[f.num,f.date,f.base,f.person||'',f.status||'未完了',f.content.replace(/\n/g,' '),(f.imgs||[]).join(' | ')].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
-  const csv=BOM+[headers.join(','),...rows].join('\r\n');
-  const a=document.createElement('a');
+  var BOM='\uFEFF';
+  var headers=['番号','日付','拠点','対応者','ステータス','内容','画像URL'];
+  var rows=list.map(function(f) {
+    return [f.num,f.date,f.base,f.person||'',f.status||'未完了',f.content.replace(/\n/g,' '),(f.imgs||[]).join(' | ')].map(function(v){ return '"'+String(v).replace(/"/g,'""')+'"'; }).join(',');
+  });
+  var csv=BOM+[headers.join(',')].concat(rows).join('\r\n');
+  var a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
-  a.download=`フィードバック_${new Date().toISOString().slice(0,10)}.csv`;
+  a.download='フィードバック_'+new Date().toISOString().slice(0,10)+'.csv';
   a.click();
   toast('📥 Excel出力しました');
 }
 
-// 管理者
 function checkPw() {
-  const pw = document.getElementById('admin-pw').value;
-  if(pw === ADMIN_PW) {
+  var pw=document.getElementById('admin-pw').value;
+  if(pw===ADMIN_PW) {
     document.getElementById('admin-lock').style.display='none';
     document.getElementById('admin-content').style.display='';
     document.getElementById('pw-error').style.display='none';
@@ -654,83 +595,49 @@ function lockAdmin() {
   document.getElementById('admin-lock').style.display='';
   document.getElementById('admin-content').style.display='none';
   document.getElementById('admin-pw').value='';
-  Object.values(charts).forEach(c=>c.destroy());
+  Object.keys(charts).forEach(function(k){ charts[k].destroy(); });
   charts={};
 }
 
 function renderStats() {
-  const total = feedbacks.length;
-  const done = feedbacks.filter(f=>f.status==='完了').length;
-  const undone = total - done;
-  const persons = [...new Set(feedbacks.map(f=>f.person).filter(Boolean))];
-
-  document.getElementById('stat-cards').innerHTML = `
-    <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-label">総件数</div></div>
-    <div class="stat-card"><div class="stat-num" style="color:#38a169">${done}</div><div class="stat-label">完了件数</div></div>
-    <div class="stat-card"><div class="stat-num" style="color:#e53e3e">${undone}</div><div class="stat-label">未完了件数</div></div>
-    <div class="stat-card"><div class="stat-num" style="color:#805ad5">${persons.length}</div><div class="stat-label">対応者数</div></div>
-  `;
-
-  const colors = ['#2b6cb0','#38a169','#c05621','#805ad5','#d69e2e','#e53e3e','#319795','#dd6b20'];
-
-  // 対応者別
-  const personCounts = {};
-  feedbacks.forEach(f=>{ const p=f.person||'未設定'; personCounts[p]=(personCounts[p]||0)+1; });
-  renderChart('chart-person', 'bar', Object.keys(personCounts), Object.values(personCounts), colors);
-
-  // ステータス別
-  renderChart('chart-status', 'doughnut', ['完了','未完了'], [done, undone], ['#38a169','#e53e3e']);
-
-  // 拠点別
-  const baseCounts = {};
-  feedbacks.forEach(f=>{ baseCounts[f.base]=(baseCounts[f.base]||0)+1; });
-  renderChart('chart-base', 'bar', Object.keys(baseCounts), Object.values(baseCounts), colors);
-
-  // 日付別（直近30日）
-  const today = new Date();
-  const dateMap = {};
-  for(let i=29;i>=0;i--){
-    const d=new Date(today); d.setDate(d.getDate()-i);
-    dateMap[d.toISOString().slice(0,10)]=0;
-  }
-  feedbacks.forEach(f=>{ if(dateMap[f.date]!==undefined) dateMap[f.date]++; });
-  renderChart('chart-date', 'line', Object.keys(dateMap), Object.values(dateMap), ['#2b6cb0']);
+  var total=feedbacks.length;
+  var done=feedbacks.filter(function(f){ return f.status==='完了'; }).length;
+  var undone=total-done;
+  var persons=[];
+  feedbacks.forEach(function(f){ if(f.person && persons.indexOf(f.person)===-1) persons.push(f.person); });
+  document.getElementById('stat-cards').innerHTML =
+    '<div class="stat-card"><div class="stat-num">'+total+'</div><div class="stat-label">総件数</div></div>'
+    +'<div class="stat-card"><div class="stat-num" style="color:#38a169">'+done+'</div><div class="stat-label">完了件数</div></div>'
+    +'<div class="stat-card"><div class="stat-num" style="color:#e53e3e">'+undone+'</div><div class="stat-label">未完了件数</div></div>'
+    +'<div class="stat-card"><div class="stat-num" style="color:#805ad5">'+persons.length+'</div><div class="stat-label">対応者数</div></div>';
+  var colors=['#2b6cb0','#38a169','#c05621','#805ad5','#d69e2e','#e53e3e','#319795','#dd6b20'];
+  var personCounts={};
+  feedbacks.forEach(function(f){ var p=f.person||'未設定'; personCounts[p]=(personCounts[p]||0)+1; });
+  renderChart('chart-person','bar',Object.keys(personCounts),Object.values(personCounts),colors);
+  renderChart('chart-status','doughnut',['完了','未完了'],[done,undone],['#38a169','#e53e3e']);
+  var baseCounts={};
+  feedbacks.forEach(function(f){ baseCounts[f.base]=(baseCounts[f.base]||0)+1; });
+  renderChart('chart-base','bar',Object.keys(baseCounts),Object.values(baseCounts),colors);
+  var today=new Date(), dateMap={};
+  for(var i=29;i>=0;i--){ var d=new Date(today); d.setDate(d.getDate()-i); dateMap[d.toISOString().slice(0,10)]=0; }
+  feedbacks.forEach(function(f){ if(dateMap[f.date]!==undefined) dateMap[f.date]++; });
+  renderChart('chart-date','line',Object.keys(dateMap),Object.values(dateMap),['#2b6cb0']);
 }
 
 function renderChart(id, type, labels, data, colors) {
   if(charts[id]) charts[id].destroy();
-  const ctx = document.getElementById(id).getContext('2d');
-  charts[id] = new Chart(ctx, {
-    type,
-    data: {
-      labels,
-      datasets: [{
-        data,
-        backgroundColor: type==='line' ? 'rgba(43,108,176,.15)' : colors,
-        borderColor: type==='line' ? '#2b6cb0' : colors,
-        borderWidth: type==='line' ? 2 : 1,
-        fill: type==='line',
-        tension: .3,
-        pointRadius: type==='line' ? 3 : undefined
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { display: type==='doughnut' } },
-      scales: type!=='doughnut' ? { y: { beginAtZero: true, ticks: { stepSize: 1 } } } : {}
-    }
+  var ctx=document.getElementById(id).getContext('2d');
+  charts[id]=new Chart(ctx, {
+    type:type,
+    data:{ labels:labels, datasets:[{ data:data, backgroundColor:type==='line'?'rgba(43,108,176,.15)':colors, borderColor:type==='line'?'#2b6cb0':colors, borderWidth:type==='line'?2:1, fill:type==='line', tension:.3, pointRadius:type==='line'?3:undefined }] },
+    options:{ responsive:true, plugins:{ legend:{ display:type==='doughnut' } }, scales:type!=='doughnut'?{ y:{ beginAtZero:true, ticks:{ stepSize:1 } } }:{} }
   });
 }
 
 function showTab(t) {
-  ['list','input','settings','admin','base'].forEach(id=>{
-    document.getElementById('tab-'+id).style.display=id===t?'':'none';
-  });
-  document.querySelectorAll('.tabs:first-child .tab').forEach((el,i)=>{
-    el.classList.toggle('active',['list','input','settings','admin'][i]===t);
-  });
-  // 拠点タブのハイライトを外す
-  document.querySelectorAll('#base-tabs .tab').forEach(el=>el.classList.remove('active'));
+  ['list','input','settings','admin','base'].forEach(function(id){ document.getElementById('tab-'+id).style.display=id===t?'':'none'; });
+  document.querySelectorAll('#main-tabs .tab').forEach(function(el,i){ el.classList.toggle('active',['list','input','settings','admin'][i]===t); });
+  document.querySelectorAll('#base-tabs .tab').forEach(function(el){ el.classList.remove('active'); });
   if(t==='settings') renderBases();
   if(t==='input') refreshBaseSelects();
 }
