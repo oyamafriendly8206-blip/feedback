@@ -194,6 +194,10 @@
         <button class="btn btn-sm" style="background:#e2e8f0;color:#4a5568;" onclick="lockAdmin()">🔒 ロック</button>
       </div>
       <div class="stat-grid" id="stat-cards"></div>
+      <div class="card" id="usage-card" style="margin-bottom:20px;">
+        <h2 class="admin" style="color:#c05621;border-bottom-color:#feebc8;">☁️ Supabase 使用量</h2>
+        <div id="usage-content"><div class="loading"><div class="spinner"></div><br>使用量を取得中...</div></div>
+      </div>
       <div class="chart-grid">
         <div class="chart-box"><h3>👤 対応者別 件数</h3><canvas id="chart-person"></canvas></div>
         <div class="chart-box"><h3>✅ ステータス別 件数</h3><canvas id="chart-status"></canvas></div>
@@ -610,6 +614,7 @@ function renderStats() {
     +'<div class="stat-card"><div class="stat-num" style="color:#38a169">'+done+'</div><div class="stat-label">完了件数</div></div>'
     +'<div class="stat-card"><div class="stat-num" style="color:#e53e3e">'+undone+'</div><div class="stat-label">未完了件数</div></div>'
     +'<div class="stat-card"><div class="stat-num" style="color:#805ad5">'+persons.length+'</div><div class="stat-label">対応者数</div></div>';
+  renderUsage();
   var colors=['#2b6cb0','#38a169','#c05621','#805ad5','#d69e2e','#e53e3e','#319795','#dd6b20'];
   var personCounts={};
   feedbacks.forEach(function(f){ var p=f.person||'未設定'; personCounts[p]=(personCounts[p]||0)+1; });
@@ -622,6 +627,79 @@ function renderStats() {
   for(var i=29;i>=0;i--){ var d=new Date(today); d.setDate(d.getDate()-i); dateMap[d.toISOString().slice(0,10)]=0; }
   feedbacks.forEach(function(f){ if(dateMap[f.date]!==undefined) dateMap[f.date]++; });
   renderChart('chart-date','line',Object.keys(dateMap),Object.values(dateMap),['#2b6cb0']);
+}
+
+function renderUsage() {
+  var rowCount = feedbacks.length;
+  var textBytes = feedbacks.reduce(function(acc, f) {
+    return acc + (f.num||'').length + (f.date||'').length + (f.base||'').length
+      + (f.person||'').length + (f.content||'').length + (f.status||'').length;
+  }, 0);
+  var dbEstimateKB = Math.round(textBytes / 1024 * 10) / 10;
+  var dbLimitMB = 500;
+  var dbPct = Math.min(100, Math.round(dbEstimateKB / (dbLimitMB * 1024) * 100 * 10) / 10);
+
+  function bar(pct, color) {
+    return '<div style="background:#e2e8f0;border-radius:20px;height:10px;margin:6px 0 2px;">'
+      +'<div style="background:'+color+';border-radius:20px;height:10px;width:'+pct+'%;transition:width .5s;"></div></div>';
+  }
+  function colorFor(pct) { return pct < 60 ? '#38a169' : pct < 85 ? '#d69e2e' : '#e53e3e'; }
+
+  // 全画像URLを収集
+  var allImgs = [];
+  feedbacks.forEach(function(f) { (f.imgs||[]).forEach(function(url){ if(url) allImgs.push(url); }); });
+  var imgCount = allImgs.length;
+
+  document.getElementById('usage-content').innerHTML =
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">'
+    +'<div style="background:#f7fafc;border-radius:8px;padding:14px;">'
+    +'<div style="font-weight:700;font-size:.9rem;color:#2d3748;margin-bottom:4px;">🗄️ データベース</div>'
+    +'<div style="font-size:.82rem;color:#718096;">フィードバック件数：<b style="color:#2d3748;">'+rowCount+' 件</b></div>'
+    +'<div style="font-size:.82rem;color:#718096;">テキストデータ概算：<b style="color:#2d3748;">'+dbEstimateKB+' KB</b></div>'
+    +bar(dbPct, colorFor(dbPct))
+    +'<div style="font-size:.78rem;color:#a0aec0;">上限 '+dbLimitMB+' MB のうち約 '+dbPct+'% 使用</div>'
+    +'</div>'
+    +'<div style="background:#f7fafc;border-radius:8px;padding:14px;" id="storage-box">'
+    +'<div style="font-weight:700;font-size:.9rem;color:#2d3748;margin-bottom:4px;">🖼️ ストレージ（画像）</div>'
+    +'<div style="font-size:.82rem;color:#718096;">添付画像数：<b style="color:#2d3748;">'+imgCount+' 枚</b></div>'
+    +'<div style="font-size:.82rem;color:#718096;" id="storage-size">📡 画像サイズ取得中...</div>'
+    +'<div id="storage-bar"></div>'
+    +'<div style="font-size:.78rem;color:#a0aec0;" id="storage-pct"></div>'
+    +'</div>'
+    +'<div style="grid-column:1/-1;background:#ebf8ff;border-radius:8px;padding:12px;font-size:.82rem;color:#2c5282;">'
+    +'📋 <b>Supabase 無料枠</b>：DB 500MB ／ ストレージ 1GB ／ 月間アクセス 50,000件'
+    +'</div>'
+    +'</div>';
+
+  // 各画像にHEADリクエストを送り実際のバイト数を取得
+  var totalBytes = 0;
+  var done = 0;
+  if(imgCount === 0) {
+    document.getElementById('storage-size').innerHTML = '使用量：<b style="color:#2d3748;">0 KB</b>';
+    document.getElementById('storage-bar').innerHTML = bar(0, '#38a169');
+    document.getElementById('storage-pct').textContent = '上限 1 GB のうち 0% 使用';
+    return;
+  }
+  allImgs.forEach(function(url) {
+    fetch(url, { method: 'HEAD' }).then(function(res) {
+      var len = parseInt(res.headers.get('content-length')||'0', 10);
+      totalBytes += len;
+    }).catch(function() {
+      // 取得失敗は0として扱う
+    }).then(function() {
+      done++;
+      if(done === imgCount) {
+        var storageMB = Math.round(totalBytes / 1024 / 1024 * 100) / 100;
+        var storageKB = Math.round(totalBytes / 1024 * 10) / 10;
+        var displaySize = storageMB >= 1 ? storageMB+' MB' : storageKB+' KB';
+        var storageLimitMB = 1024;
+        var storagePct = Math.min(100, Math.round(storageMB / storageLimitMB * 100 * 100) / 100);
+        document.getElementById('storage-size').innerHTML = '使用量：<b style="color:#2d3748;">'+displaySize+'</b>（'+imgCount+' 枚合計）';
+        document.getElementById('storage-bar').innerHTML = bar(storagePct, colorFor(storagePct));
+        document.getElementById('storage-pct').textContent = '上限 1 GB のうち '+storagePct+'% 使用';
+      }
+    });
+  });
 }
 
 function renderChart(id, type, labels, data, colors) {
