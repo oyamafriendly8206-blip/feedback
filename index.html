@@ -88,6 +88,7 @@
     <button class="tab" onclick="showTab('settings')">⚙️ 拠点設定</button>
     <button class="tab admin-tab" onclick="showTab('admin')">🔐 管理者</button>
   </div>
+  <div class="tabs" id="base-tabs" style="margin-top:-12px;margin-bottom:20px;"></div>
 
   <!-- 一覧 -->
   <div id="tab-list">
@@ -183,7 +184,43 @@
     </div>
   </div>
 
-  <!-- 拠点設定 -->
+  <!-- 拠点別タブ -->
+  <div id="tab-base" style="display:none">
+    <div class="card">
+      <h2 id="base-tab-title">🏢 拠点別フィードバック</h2>
+      <div class="filter-row">
+        <div class="form-group">
+          <label>ステータス</label>
+          <select id="base-filter-status" onchange="renderBaseList()">
+            <option value="">すべて</option>
+            <option value="未完了">未完了</option>
+            <option value="完了">完了</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>対応者</label>
+          <select id="base-filter-person" onchange="renderBaseList()"><option value="">すべて</option></select>
+        </div>
+        <div class="form-group">
+          <label>日付（から）</label>
+          <input type="date" id="base-filter-from" onchange="renderBaseList()">
+        </div>
+        <div class="form-group">
+          <label>日付（まで）</label>
+          <input type="date" id="base-filter-to" onchange="renderBaseList()">
+        </div>
+        <div class="form-group">
+          <label>キーワード</label>
+          <input type="text" id="base-filter-kw" placeholder="番号・内容" oninput="renderBaseList()">
+        </div>
+        <button class="btn btn-sm" style="background:#e2e8f0;color:#4a5568;align-self:flex-end;" onclick="clearBaseFilters()">クリア</button>
+      </div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <span id="base-result-count" class="count-badge"></span>
+    </div>
+    <div id="base-feedback-list" class="feedback-grid"></div>
+  </div>
   <div id="tab-settings" style="display:none">
     <div class="card">
       <h2>⚙️ 拠点の管理</h2>
@@ -248,7 +285,7 @@ const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const ADMIN_PW = 'agekke8206';
 const HEADERS = { 'Content-Type': 'application/json', 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY };
 
-let feedbacks = [], bases = [], editId = null, charts = {};
+let feedbacks = [], bases = [], editId = null, charts = {}, currentBase = '';
 window._pendingImgs = [];
 
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -298,6 +335,11 @@ function refreshBaseSelects() {
   document.getElementById('in-base').innerHTML = opts;
   const fOpts = '<option value="">すべて</option>' + bases.map(b=>`<option value="${b}">${b}</option>`).join('');
   document.getElementById('filter-base').innerHTML = fOpts;
+  // 拠点タブを更新
+  const tabEl = document.getElementById('base-tabs');
+  tabEl.innerHTML = bases.map(b =>
+    `<button class="tab" style="font-size:.82rem;padding:6px 14px;" onclick="showBaseTab('${b}')" id="btab-${encodeURIComponent(b)}">🏢 ${esc(b)}</button>`
+  ).join('');
 }
 
 function refreshPersonFilter() {
@@ -308,7 +350,68 @@ function refreshPersonFilter() {
   if(cur) el.value = cur;
 }
 
-function renderBases() {
+function showBaseTab(base) {
+  currentBase = base;
+  // メインタブの選択を外す
+  document.querySelectorAll('.tabs:first-child .tab').forEach(el => el.classList.remove('active'));
+  // 拠点タブのハイライト
+  document.querySelectorAll('#base-tabs .tab').forEach(el => el.classList.remove('active'));
+  const btn = document.getElementById('btab-' + encodeURIComponent(base));
+  if(btn) btn.classList.add('active');
+  // 各タブコンテンツ非表示
+  ['list','input','settings','admin','base'].forEach(id => {
+    document.getElementById('tab-'+id).style.display = id==='base' ? '' : 'none';
+  });
+  document.getElementById('base-tab-title').textContent = `🏢 ${base} のフィードバック`;
+  // 対応者フィルター更新
+  const persons = [...new Set(feedbacks.filter(f=>f.base===base).map(f=>f.person).filter(Boolean))].sort();
+  document.getElementById('base-filter-person').innerHTML = '<option value="">すべて</option>' + persons.map(p=>`<option value="${p}">${p}</option>`).join('');
+  clearBaseFilters(false);
+  renderBaseList();
+}
+
+function renderBaseList() {
+  const status = document.getElementById('base-filter-status').value;
+  const person = document.getElementById('base-filter-person').value;
+  const from = document.getElementById('base-filter-from').value;
+  const to = document.getElementById('base-filter-to').value;
+  const kw = document.getElementById('base-filter-kw').value.toLowerCase();
+  let list = feedbacks.filter(f => {
+    if(f.base !== currentBase) return false;
+    if(status && (f.status||'未完了') !== status) return false;
+    if(person && (f.person||'') !== person) return false;
+    if(from && f.date < from) return false;
+    if(to && f.date > to) return false;
+    if(kw && !(f.num.toLowerCase().includes(kw)||f.content.toLowerCase().includes(kw))) return false;
+    return true;
+  }).sort((a,b) => b.date.localeCompare(a.date));
+  document.getElementById('base-result-count').textContent = `${list.length} 件`;
+  const el = document.getElementById('base-feedback-list');
+  if(!list.length) { el.innerHTML = '<div class="empty">📭 該当するフィードバックがありません</div>'; return; }
+  el.innerHTML = list.map(f => `
+    <div class="fb-card ${f.status==='完了'?'done':''}">
+      <div class="fb-card-header">
+        <span class="fb-num"># ${esc(f.num)}</span>
+        <span class="fb-date">${f.date}</span>
+      </div>
+      <div class="fb-card-body">
+        <span class="fb-base">${esc(f.base)}</span>
+        ${f.person?`<span style="display:inline-block;background:#e9d8fd;color:#553c9a;border-radius:4px;font-size:.75rem;padding:2px 8px;margin-left:4px;margin-bottom:8px;">👤 ${esc(f.person)}</span>`:''}
+        <span onclick="toggleStatus('${f.id}')" style="display:inline-block;cursor:pointer;border-radius:4px;font-size:.75rem;padding:2px 8px;margin-left:4px;margin-bottom:8px;background:${f.status==='完了'?'#c6f6d5':'#fed7d7'};color:${f.status==='完了'?'#276749':'#9b2c2c'};">${f.status==='完了'?'✅ 完了':'⏳ 未完了'}</span>
+        <div class="fb-content">${esc(f.content)}</div>
+        ${f.imgs&&f.imgs.length?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">${f.imgs.map((img,i)=>`<img class="fb-img" src="${img}" alt="画像${i+1}" onclick="openModal('${f.id}',${i})">`).join('')}</div>`:''}
+        <div class="fb-actions">
+          <button class="btn btn-sm" style="background:#ecc94b;color:#744210;" onclick="editFeedback('${f.id}')">✏️ 編集</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteFeedback('${f.id}')">🗑️ 削除</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function clearBaseFilters(render=true) {
+  ['base-filter-status','base-filter-person','base-filter-from','base-filter-to','base-filter-kw'].forEach(id=>{document.getElementById(id).value='';});
+  if(render) renderBaseList();
+}
   const el = document.getElementById('base-list');
   if(!bases.length) { el.innerHTML = '<span style="color:#a0aec0;font-size:.85rem;">拠点が登録されていません</span>'; return; }
   el.innerHTML = bases.map((b,i) => `<div class="base-tag"><span>${esc(b)}</span><button class="btn btn-danger" style="padding:2px 8px;font-size:.75rem;" onclick="removeBase(${i})">削除</button></div>`).join('');
@@ -619,12 +722,14 @@ function renderChart(id, type, labels, data, colors) {
 }
 
 function showTab(t) {
-  ['list','input','settings','admin'].forEach(id=>{
+  ['list','input','settings','admin','base'].forEach(id=>{
     document.getElementById('tab-'+id).style.display=id===t?'':'none';
   });
-  document.querySelectorAll('.tab').forEach((el,i)=>{
+  document.querySelectorAll('.tabs:first-child .tab').forEach((el,i)=>{
     el.classList.toggle('active',['list','input','settings','admin'][i]===t);
   });
+  // 拠点タブのハイライトを外す
+  document.querySelectorAll('#base-tabs .tab').forEach(el=>el.classList.remove('active'));
   if(t==='settings') renderBases();
   if(t==='input') refreshBaseSelects();
 }
