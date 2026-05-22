@@ -1,727 +1,897 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>フィードバック管理ツール</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; color: #2d3748; min-height: 100vh; }
-  header { background: #2b6cb0; color: white; padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
-  header h1 { font-size: 1.2rem; font-weight: 700; }
-  .container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
-  .tabs { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
-  .tab { padding: 8px 20px; border-radius: 6px; border: none; cursor: pointer; font-size: 0.95rem; font-weight: 600; transition: all .2s; background: white; color: #4a5568; border: 1px solid #cbd5e0; }
-  .tab.active { background: #2b6cb0; color: white; border-color: #2b6cb0; }
-  .tab.admin-tab { color: #744210; border-color: #f6ad55; }
-  .tab.admin-tab.active { background: #c05621; color: white; border-color: #c05621; }
-  .tab.base-tab { font-size: .82rem; padding: 6px 14px; color: #2c7a7b; border-color: #81e6d9; }
-  .tab.base-tab.active { background: #2c7a7b; color: white; border-color: #2c7a7b; }
-  .card { background: white; border-radius: 10px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 20px; }
-  .card h2 { font-size: 1rem; font-weight: 700; margin-bottom: 14px; color: #2b6cb0; border-bottom: 2px solid #ebf4ff; padding-bottom: 8px; }
-  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .form-group { display: flex; flex-direction: column; gap: 4px; }
-  .form-group.full { grid-column: 1 / -1; }
-  label { font-size: 0.82rem; font-weight: 600; color: #4a5568; }
-  input, select, textarea { border: 1px solid #cbd5e0; border-radius: 6px; padding: 8px 10px; font-size: 0.92rem; width: 100%; outline: none; transition: border .2s; }
-  input:focus, select:focus, textarea:focus { border-color: #2b6cb0; }
-  textarea { resize: vertical; min-height: 80px; }
-  .btn { padding: 9px 20px; border-radius: 6px; border: none; cursor: pointer; font-size: 0.92rem; font-weight: 600; transition: all .2s; }
-  .btn-primary { background: #2b6cb0; color: white; }
-  .btn-primary:hover { background: #2c5282; }
-  .btn-danger { background: #e53e3e; color: white; }
-  .btn-success { background: #38a169; color: white; }
-  .btn-warning { background: #c05621; color: white; }
-  .btn-sm { padding: 5px 12px; font-size: 0.82rem; }
-  .filter-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
-  .filter-row .form-group { flex: 1; min-width: 120px; }
-  .feedback-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
-  .fb-card { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; border-left: 4px solid #2b6cb0; }
-  .fb-card.done { border-left-color: #38a169; opacity: .85; }
-  .fb-card-header { padding: 12px 14px; background: #ebf8ff; display: flex; justify-content: space-between; align-items: center; }
-  .fb-card.done .fb-card-header { background: #f0fff4; }
-  .fb-num { font-weight: 800; color: #2b6cb0; font-size: 1rem; }
-  .fb-date { font-size: 0.78rem; color: #718096; }
-  .fb-card-body { padding: 12px 14px; }
-  .fb-base { display: inline-block; background: #2b6cb0; color: white; border-radius: 4px; font-size: .75rem; padding: 2px 8px; margin-bottom: 8px; }
-  .fb-content { font-size: .9rem; color: #2d3748; line-height: 1.5; margin-bottom: 10px; white-space: pre-wrap; }
-  .fb-img { width: calc(50% - 3px); border-radius: 6px; max-height: 140px; object-fit: cover; cursor: pointer; }
-  .fb-actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
-  .base-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-  .base-tag { display: flex; align-items: center; gap: 6px; background: #ebf4ff; border-radius: 20px; padding: 4px 12px; font-size: .85rem; }
-  .base-tag span { color: #2b6cb0; font-weight: 600; }
-  .add-base-row { display: flex; gap: 8px; }
-  .empty { text-align: center; color: #a0aec0; padding: 40px; font-size: .95rem; }
-  .img-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.8); z-index: 1000; align-items: center; justify-content: center; }
-  .img-modal.open { display: flex; }
-  .img-modal img { max-width: 90vw; max-height: 90vh; border-radius: 8px; }
-  .img-modal-close { position: absolute; top: 16px; right: 24px; color: white; font-size: 2rem; cursor: pointer; font-weight: bold; }
-  .count-badge { background: #e2e8f0; border-radius: 20px; padding: 2px 10px; font-size: .8rem; color: #4a5568; }
-  .loading { text-align: center; color: #718096; padding: 40px; }
-  .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid #cbd5e0; border-top-color: #2b6cb0; border-radius: 50%; animation: spin .7s linear infinite; margin-bottom: 8px; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .toast { position: fixed; bottom: 24px; right: 24px; background: #2d3748; color: white; padding: 10px 20px; border-radius: 8px; font-size: .9rem; opacity: 0; transition: opacity .3s; z-index: 2000; }
-  .toast.show { opacity: 1; }
-  .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
-  .stat-card { background: white; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); text-align: center; }
-  .stat-num { font-size: 2rem; font-weight: 800; color: #2b6cb0; }
-  .stat-label { font-size: .82rem; color: #718096; margin-top: 4px; }
-  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .chart-box { background: white; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
-  .chart-box h3 { font-size: .9rem; font-weight: 700; color: #4a5568; margin-bottom: 12px; }
-  .pw-box { max-width: 360px; margin: 60px auto; text-align: center; }
-  .pw-box h2 { font-size: 1.1rem; margin-bottom: 16px; color: #c05621; }
-  .lock-icon { font-size: 3rem; margin-bottom: 12px; }
-  @media(max-width:600px) { .form-grid { grid-template-columns: 1fr; } .filter-row { flex-direction: column; } .chart-grid { grid-template-columns: 1fr; } }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>拠点別フィードバック管理ツール</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .sub-tab { border-bottom: 2px solid transparent; }
+        .sub-tab.active { border-color: #3b82f6; color: #3b82f6; font-weight: bold; }
+    </style>
 </head>
-<body>
-<header>
-  <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-  <h1>フィードバック管理ツール</h1>
-</header>
-<div class="container">
-  <!-- メインタブ -->
-  <div class="tabs" id="main-tabs">
-    <button class="tab active" onclick="showTab('list')">📋 一覧</button>
-    <button class="tab" onclick="showTab('input')">➕ 入力</button>
-    <button class="tab" onclick="showTab('settings')">⚙️ 拠点設定</button>
-    <button class="tab admin-tab" onclick="showTab('admin')">🔐 管理者</button>
-  </div>
-  <!-- 拠点タブ -->
-  <div class="tabs" id="base-tabs" style="margin-bottom:20px;"></div>
+<body class="bg-gray-50 min-h-screen">
 
-  <!-- 一覧 -->
-  <div id="tab-list">
-    <div class="card">
-      <h2>🔍 絞り込み</h2>
-      <div class="filter-row">
-        <div class="form-group"><label>拠点</label><select id="filter-base" onchange="renderList()"><option value="">すべて</option></select></div>
-        <div class="form-group"><label>対応者</label><select id="filter-person" onchange="renderList()"><option value="">すべて</option></select></div>
-        <div class="form-group"><label>ステータス</label>
-          <select id="filter-status" onchange="renderList()">
-            <option value="">すべて</option><option value="未完了">未完了</option><option value="完了">完了</option>
-          </select>
+    <nav class="bg-blue-600 text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-clipboard-list text-2xl"></i>
+                    <span class="font-bold text-xl tracking-wider">拠点別フィードバック管理ツール</span>
+                </div>
+                <div class="flex space-x-1 md:space-x-2">
+                    <button onclick="switchTab('list')" id="nav-list" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition active bg-blue-700"><i class="fa-solid fa-list mr-1"></i>一覧</button>
+                    <button onclick="switchTab('input')" id="nav-input" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition"><i class="fa-solid fa-plus mr-1"></i>入力</button>
+                    <button onclick="switchTab('manuals-tab')" id="nav-manuals-tab" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition"><i class="fa-solid fa-book mr-1"></i>マニュアル</button>
+                    <button onclick="switchTab('settings')" id="nav-settings" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition"><i class="fa-solid fa-gear mr-1"></i>拠点設定</button>
+                    <button onclick="switchTab('admin')" id="nav-admin" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition text-yellow-300"><i class="fa-solid fa-lock mr-1"></i>管理者</button>
+                </div>
+            </div>
         </div>
-        <div class="form-group"><label>日付（から）</label><input type="date" id="filter-from" onchange="renderList()"></div>
-        <div class="form-group"><label>日付（まで）</label><input type="date" id="filter-to" onchange="renderList()"></div>
-        <div class="form-group"><label>番号・内容検索</label><input type="text" id="filter-keyword" placeholder="キーワード" oninput="renderList()"></div>
-        <button class="btn btn-sm" style="background:#e2e8f0;color:#4a5568;align-self:flex-end;" onclick="clearFilters()">クリア</button>
-        <button class="btn btn-sm btn-primary" style="align-self:flex-end;" onclick="loadAll()">🔄 更新</button>
-        <button class="btn btn-sm btn-success" style="align-self:flex-end;" onclick="exportExcel()">📥 Excel出力</button>
-      </div>
-    </div>
-    <div style="margin-bottom:12px;"><span id="result-count" class="count-badge"></span></div>
-    <div id="feedback-list" class="feedback-grid"><div class="loading"><div class="spinner"></div><br>読み込み中...</div></div>
-  </div>
+    </nav>
 
-  <!-- 入力 -->
-  <div id="tab-input" style="display:none">
-    <div class="card">
-      <h2>➕ フィードバック入力</h2>
-      <div class="form-grid">
-        <div class="form-group"><label>番号 *</label><input type="text" id="in-num" placeholder="例: FB-001"></div>
-        <div class="form-group"><label>日付 *</label><input type="date" id="in-date"></div>
-        <div class="form-group"><label>拠点 *</label><select id="in-base"><option value="">選択してください</option></select></div>
-        <div class="form-group"><label>対応者</label><input type="text" id="in-person" placeholder="例: 田中 太郎"></div>
-        <div class="form-group"><label>ステータス</label>
-          <select id="in-status"><option value="未完了">未完了</option><option value="完了">完了</option></select>
+    <main class="max-w-7xl mx-auto p-4 md:p-6">
+
+        <div id="tab-list" class="tab-content active space-y-6">
+            <div class="bg-white p-2 rounded-xl shadow-sm border border-gray-100 overflow-x-auto flex space-x-2" id="base-tabs-container">
+                </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 h-fit space-y-4">
+                    <h3 class="font-bold text-gray-700 flex items-center"><i class="fa-solid fa-magnifying-glass text-blue-500 mr-2"></i>絞り込み</h3>
+                    
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">対応者</label>
+                        <select id="filter-person" onchange="applyFilters()" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">ステータス</label>
+                        <select id="filter-status" onchange="applyFilters()" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">(すべて)</option>
+                            <option value="未完了">未完了</option>
+                            <option value="完了">完了</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">日付（から）</label>
+                            <input type="date" id="filter-date-start" onchange="applyFilters()" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">日付（まで）</label>
+                            <input type="date" id="filter-date-end" onchange="applyFilters()" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">番号・内容検索</label>
+                        <input type="text" id="filter-search" oninput="applyFilters()" placeholder="キーワードを入力..." class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <div class="pt-2 flex space-x-2">
+                        <button onclick="clearFilters()" class="flex-1 py-2 bg-gray-100 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-200 transition">クリア</button>
+                        <button onclick="loadAllData()" class="px-3 bg-blue-50 border border-blue-200 text-blue-600 rounded-xl hover:bg-blue-100 transition"><i class="fa-solid fa-arrow-rotate-right"></i></button>
+                    </div>
+                    <button onclick="exportToCSV()" class="w-full py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 transition flex items-center justify-center shadow-sm shadow-emerald-100"><i class="fa-solid fa-file-excel mr-2"></i>Excel出力 (CSV)</button>
+                </div>
+
+                <div class="lg:col-span-3">
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-sm font-semibold text-gray-500" id="results-count">0 件のデータ</span>
+                    </div>
+                    <div id="feedback-list-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        </div>
+                </div>
+            </div>
         </div>
-        <div class="form-group full"><label>内容 *</label><textarea id="in-content" placeholder="フィードバックの内容を入力してください"></textarea></div>
-        <div class="form-group full"><label>画像（複数選択可）</label><input type="file" id="in-img" accept="image/*" multiple onchange="previewImgs(this)"></div>
-        <div class="form-group full" id="img-preview-wrap" style="display:none">
-          <label>画像プレビュー</label>
-          <div id="img-preview-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;"></div>
+
+        <div id="tab-input" class="tab-content max-w-2xl mx-auto bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-gray-100 space-y-6">
+            <h2 class="text-xl font-bold text-gray-800 flex items-center border-b pb-3"><i class="fa-solid fa-square-plus text-blue-500 mr-2"></i>フィードバックを登録する</h2>
+            <input type="hidden" id="edit-id">
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-600 mb-1">番号 <span class="text-red-500">*</span></label>
+                    <input type="text" id="form-num" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-600 mb-1">日付 <span class="text-red-500">*</span></label>
+                    <input type="date" id="form-date" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-600 mb-1">拠点 <span class="text-red-500">*</span></label>
+                    <select id="form-base" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-600 mb-1">対応者</label>
+                    <input type="text" id="form-person" placeholder="担当名（任意）" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-gray-600 mb-1">ステータス</label>
+                <div class="flex space-x-4">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="radio" name="form-status" value="未完了" checked class="w-4 h-4 text-blue-600">
+                        <span class="text-sm font-medium text-gray-700">未完了</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="radio" name="form-status" value="完了" class="w-4 h-4 text-blue-600">
+                        <span class="text-sm font-medium text-gray-700">完了</span>
+                    </label>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-gray-600 mb-1">不備内容 <span class="text-red-500">*</span></label>
+                <textarea id="form-content" rows="4" placeholder="具体的な不備内容を入力してください" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-gray-600 mb-1">画像添付 (複数可)</label>
+                <div class="border-2 border-dashed border-gray-200 rounded-2xl p-4 text-center hover:bg-gray-50 transition cursor-pointer relative">
+                    <input type="file" id="form-files" multiple accept="image/*" onchange="handleFileSelect(event)" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                    <i class="fa-solid fa-cloud-arrow-up text-3xl text-gray-400 mb-2"></i>
+                    <p class="text-sm text-gray-500 font-medium">クリック、または画像をドラッグ＆ドロップ</p>
+                </div>
+                <div id="image-preview-container" class="grid grid-cols-4 gap-2 mt-3"></div>
+            </div>
+
+            <div class="flex space-x-3 pt-2">
+                <button onclick="cancelEdit()" id="btn-cancel" class="hidden flex-1 py-3 bg-gray-100 text-gray-600 font-semibold rounded-xl hover:bg-gray-200 transition">キャンセル</button>
+                <button onclick="saveFeedback()" id="btn-save" class="flex-1 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition shadow-lg shadow-blue-100">💾 保存する</button>
+            </div>
         </div>
-      </div>
-      <div style="margin-top:16px;display:flex;gap:8px;">
-        <button class="btn btn-primary" id="save-btn" onclick="saveFeedback()">💾 保存</button>
-        <button class="btn" style="background:#e2e8f0;color:#4a5568;" onclick="resetForm()">リセット</button>
-      </div>
-    </div>
-  </div>
 
-  <!-- 拠点設定 -->
-  <div id="tab-settings" style="display:none">
-    <div class="card">
-      <h2>⚙️ 拠点の管理</h2>
-      <div class="add-base-row">
-        <input type="text" id="new-base-name" placeholder="新しい拠点名を入力" style="flex:1;">
-        <button class="btn btn-success" onclick="addBase()">追加</button>
-      </div>
-      <div class="base-list" id="base-list"></div>
-    </div>
-  </div>
-
-  <!-- 拠点別 -->
-  <div id="tab-base" style="display:none">
-    <div class="card">
-      <h2 id="base-tab-title">🏢 拠点別フィードバック</h2>
-      <div class="filter-row">
-        <div class="form-group"><label>ステータス</label>
-          <select id="bf-status" onchange="renderBaseList()">
-            <option value="">すべて</option><option value="未完了">未完了</option><option value="完了">完了</option>
-          </select>
+        <div id="tab-manuals-tab" class="tab-content max-w-4xl mx-auto space-y-6">
+            <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                <h2 class="text-xl font-bold text-gray-800 flex items-center border-b pb-3 mb-6">
+                    <i class="fa-solid fa-book text-blue-500 mr-2"></i>業務マニュアル一覧
+                </h2>
+                <div id="user-manuals-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    </div>
+            </div>
         </div>
-        <div class="form-group"><label>対応者</label><select id="bf-person" onchange="renderBaseList()"><option value="">すべて</option></select></div>
-        <div class="form-group"><label>日付（から）</label><input type="date" id="bf-from" onchange="renderBaseList()"></div>
-        <div class="form-group"><label>日付（まで）</label><input type="date" id="bf-to" onchange="renderBaseList()"></div>
-        <div class="form-group"><label>キーワード</label><input type="text" id="bf-kw" placeholder="番号・内容" oninput="renderBaseList()"></div>
-        <button class="btn btn-sm" style="background:#e2e8f0;color:#4a5568;align-self:flex-end;" onclick="clearBaseFilters()">クリア</button>
-      </div>
+
+        <div id="tab-settings" class="tab-content max-w-md mx-auto bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-6">
+            <h2 class="text-xl font-bold text-gray-800 flex items-center border-b pb-3"><i class="fa-solid fa-sliders text-blue-500 mr-2"></i>拠点を管理する</h2>
+            
+            <div class="flex space-x-2">
+                <input type="text" id="new-base-name" placeholder="新しい拠点名" class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button onclick="addBase()" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition">追加</button>
+            </div>
+
+            <ul id="settings-base-list" class="divide-y divide-gray-100 max-h-60 overflow-y-auto pr-1">
+                </ul>
+        </div>
+
+        <div id="tab-admin" class="tab-content max-w-5xl mx-auto space-y-6">
+            <div id="admin-auth-panel" class="max-w-md mx-auto bg-white p-6 rounded-3xl shadow-sm border border-gray-100 text-center space-y-4">
+                <i class="fa-solid fa-shield-halved text-4xl text-amber-500"></i>
+                <h2 class="text-lg font-bold text-gray-800">管理者認証</h2>
+                <p class="text-sm text-gray-500">統計情報およびマニュアル編集にアクセスするにはパスワードが必要です。</p>
+                <input type="password" id="admin-password" placeholder="パスワードを入力" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-center focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button onclick="checkAdminPassword()" class="w-full py-2.5 bg-gray-800 text-white font-semibold rounded-xl hover:bg-gray-900 transition">ログイン</button>
+            </div>
+
+            <div id="admin-dashboard" class="hidden space-y-8">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><p class="text-xs font-bold text-gray-400 uppercase">総件数</p><p class="text-2xl font-bold text-gray-800 mt-1" id="stat-total">0</p></div>
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><p class="text-xs font-bold text-emerald-500 uppercase">完了</p><p class="text-2xl font-bold text-emerald-600 mt-1" id="stat-completed">0</p></div>
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><p class="text-xs font-bold text-rose-500 uppercase">未完了</p><p class="text-2xl font-bold text-rose-600 mt-1" id="stat-pending">0</p></div>
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><p class="text-xs font-bold text-purple-500 uppercase">対応者数</p><p class="text-2xl font-bold text-purple-600 mt-1" id="stat-persons">0</p></div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><h4 class="text-sm font-bold text-gray-600 mb-4">対応者別 件数</h4><div class="h-64"><canvas id="chart-person"></canvas></div></div>
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><h4 class="text-sm font-bold text-gray-600 mb-4">ステータス割合</h4><div class="h-64 flex justify-center"><canvas id="chart-status"></canvas></div></div>
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><h4 class="text-sm font-bold text-gray-600 mb-4">拠点別 件数</h4><div class="h-64"><canvas id="chart-base"></canvas></div></div>
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><h4 class="text-sm font-bold text-gray-600 mb-4">直近30日の投稿トレンド</h4><div class="h-64"><canvas id="chart-trend"></canvas></div></div>
+                </div>
+
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-6">
+                    <h3 class="text-lg font-bold text-gray-800 flex items-center border-b pb-3">
+                        <i class="fa-solid fa-book-open text-blue-500 mr-2"></i>【管理者用】マニュアルの設定・管理
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-2xl">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">マニュアル名</label>
+                            <input type="text" id="manual-title" placeholder="例: 入力手順マニュアル" class="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">リンクURL</label>
+                            <input type="url" id="manual-url" placeholder="https://example.com/manual.pdf" class="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div class="flex items-end">
+                            <button onclick="saveManual()" class="w-full py-2 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition">マニュアルを登録</button>
+                        </div>
+                    </div>
+                    <ul id="admin-manuals-list" class="divide-y divide-gray-100">
+                        </ul>
+                </div>
+
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                    <h3 class="text-sm font-bold text-gray-600 mb-4 flex items-center"><i class="fa-solid fa-cloud text-blue-500 mr-2"></i>Supabase リアルタイム使用量モニター</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-sm font-medium"><span class="text-gray-500">🗄️ データベース容量</span><span class="text-gray-700" id="db-usage-text">計算中...</span></div>
+                            <div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden"><div id="db-usage-bar" class="bg-blue-500 h-full transition-all duration-500" style="width: 0%"></div></div>
+                            <p class="text-xs text-gray-400">テキスト情報（上限: 500 MB）</p>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-sm font-medium"><span class="text-gray-500">🖼️ 画像ストレージ容量</span><span class="text-gray-700" id="storage-usage-text">通信中...</span></div>
+                            <div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden"><div id="storage-usage-bar" class="bg-blue-500 h-full transition-all duration-500" style="width: 0%"></div></div>
+                            <p class="text-xs text-gray-400" id="storage-status-lbl">実際の合計ファイルサイズ（上限: 1.0 GB）</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <div id="image-modal" onclick="closeImageModal()" class="fixed inset-0 bg-black/80 z-[100] hidden flex items-center justify-center p-4 cursor-zoom-out">
+        <img id="modal-img" src="" class="max-w-full max-h-full rounded-lg shadow-2xl object-contain">
     </div>
-    <div style="margin-bottom:12px;"><span id="base-result-count" class="count-badge"></span></div>
-    <div id="base-feedback-list" class="feedback-grid"></div>
-  </div>
 
-  <!-- 管理者 -->
-  <div id="tab-admin" style="display:none">
-    <div id="admin-lock">
-      <div class="pw-box">
-        <div class="lock-icon">🔐</div>
-        <h2>管理者専用エリア</h2>
-        <p style="color:#718096;font-size:.9rem;margin-bottom:16px;">パスワードを入力してください</p>
-        <input type="password" id="admin-pw" placeholder="パスワード" style="margin-bottom:10px;" onkeydown="if(event.key==='Enter')checkPw()">
-        <br>
-        <button class="btn btn-warning" onclick="checkPw()">ログイン</button>
-        <p id="pw-error" style="color:#e53e3e;font-size:.85rem;margin-top:8px;display:none;">パスワードが違います</p>
-      </div>
-    </div>
-    <div id="admin-content" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-        <h2 style="font-size:1.1rem;font-weight:700;color:#c05621;">📊 統計ダッシュボード</h2>
-        <button class="btn btn-sm" style="background:#e2e8f0;color:#4a5568;" onclick="lockAdmin()">🔒 ロック</button>
-      </div>
-      <div class="stat-grid" id="stat-cards"></div>
-      <div class="card" id="usage-card" style="margin-bottom:20px;">
-        <h2 class="admin" style="color:#c05621;border-bottom-color:#feebc8;">☁️ Supabase 使用量</h2>
-        <div id="usage-content"><div class="loading"><div class="spinner"></div><br>使用量を取得中...</div></div>
-      </div>
-      <div class="chart-grid">
-        <div class="chart-box"><h3>👤 対応者別 件数</h3><canvas id="chart-person"></canvas></div>
-        <div class="chart-box"><h3>✅ ステータス別 件数</h3><canvas id="chart-status"></canvas></div>
-        <div class="chart-box"><h3>🏢 拠点別 件数</h3><canvas id="chart-base"></canvas></div>
-        <div class="chart-box"><h3>📅 日付別 件数（直近30日）</h3><canvas id="chart-date"></canvas></div>
-      </div>
-    </div>
-  </div>
-</div>
+    <script>
+        // --- 設定エリア（ご自身の環境の値を設定してください） ---
+        var SUPABASE_URL = "https://kcahlszfdjwhkflspycq.supabase.co";
+        var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjYWhsc3pmZGp3aGtmbHNweWNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNTYxMTgsImV4cCI6MjA5NDczMjExOH0.sSBc8zUjp-lGQ_i7JucKV9dQwr7_Lwz-XMBFWmdKW-Y";
+        var ADMIN_PASS = "agekke8206";
 
-<div class="img-modal" id="img-modal" onclick="closeModal()">
-  <span class="img-modal-close">✕</span>
-  <img id="modal-img" src="" alt="">
-</div>
-<div class="toast" id="toast"></div>
+        // --- グローバル状態変数 ---
+        var allFeedbacks = [];
+        var allBases = [];
+        var allManuals = [];
+        var selectedFilesBase64 = [];
+        var activeBaseFilter = ""; // "" は「すべて」
+        var charts = {};
 
-<script>
-var SB_URL = 'https://kcahlszfdjwhkflspycq.supabase.co';
-var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjYWhsc3pmZGp3aGtmbHNweWNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNTYxMTgsImV4cCI6MjA5NDczMjExOH0.sSBc8zUjp-lGQ_i7JucKV9dQwr7_Lwz-XMBFWmdKW-Y';
-var ADMIN_PW = 'agekke8206';
-var HEADERS = { 'Content-Type': 'application/json', 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY };
+        // アプリ初期化
+        window.onload = function() {
+            document.getElementById('form-date').valueAsDate = new Date();
+            loadAllData();
+        };
 
-var feedbacks = [], bases = [], editId = null, charts = {}, currentBase = '';
-window._pendingImgs = [];
+        // タブ切り替えロジック
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(function(el) { el.classList.remove('active'); });
+            document.querySelectorAll('nav button').forEach(function(el) { el.classList.remove('bg-blue-700'); });
+            
+            document.getElementById('tab-' + tabId).classList.add('active');
+            document.getElementById('nav-' + tabId).classList.add('bg-blue-700');
+            
+            if (tabId === 'admin' && document.getElementById('admin-dashboard').classList.contains('active')) {
+                renderCharts();
+                calculateStorageUsage();
+            }
+        }
 
-function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function toast(msg, d) { d = d||2500; var el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); setTimeout(function(){ el.classList.remove('show'); }, d); }
+        // 拠点フィルターサブタブ切り替え
+        function setBaseFilter(baseName) {
+            activeBaseFilter = baseName;
+            document.querySelectorAll('.sub-tab').forEach(function(btn) {
+                btn.classList.remove('active', 'bg-blue-50', 'text-blue-600', 'border-blue-500');
+                btn.classList.add('text-gray-500', 'border-transparent');
+            });
+            
+            var activeId = baseName === "" ? "subtab-all" : "subtab-" + btoa(unescape(encodeURIComponent(baseName))).replace(/=/g, "");
+            var activeBtn = document.getElementById(activeId);
+            if (activeBtn) {
+                activeBtn.classList.add('active', 'bg-blue-50', 'text-blue-600', 'border-blue-500');
+                activeBtn.classList.remove('text-gray-500', 'border-transparent');
+            }
+            applyFilters();
+        }
 
-function sbGet(table, params) {
-  params = params||'';
-  return fetch(SB_URL+'/rest/v1/'+table+'?'+params, { headers: Object.assign({}, HEADERS, {'Prefer':'return=representation'}) }).then(function(r){ return r.json(); });
-}
-function sbPost(table, body) {
-  return fetch(SB_URL+'/rest/v1/'+table, { method:'POST', headers: Object.assign({}, HEADERS, {'Prefer':'return=representation'}), body: JSON.stringify(body) }).then(function(r){ return r.json(); });
-}
-function sbPatch(table, id, body) {
-  return fetch(SB_URL+'/rest/v1/'+table+'?id=eq.'+id, { method:'PATCH', headers: Object.assign({}, HEADERS, {'Prefer':'return=representation'}), body: JSON.stringify(body) }).then(function(r){ return r.json(); });
-}
-function sbDelete(table, id) {
-  return fetch(SB_URL+'/rest/v1/'+table+'?id=eq.'+id, { method:'DELETE', headers: HEADERS });
-}
-function uploadImage(base64, filename) {
-  return fetch(base64).then(function(r){ return r.blob(); }).then(function(blob) {
-    var path = Date.now()+'_'+filename;
-    return fetch(SB_URL+'/storage/v1/object/feedback-images/'+path, {
-      method:'POST', headers:{ 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY, 'Content-Type':blob.type }, body:blob
-    }).then(function(res) {
-      if(!res.ok) throw new Error('画像アップロード失敗');
-      return SB_URL+'/storage/v1/object/public/feedback-images/'+path;
-    });
-  });
-}
+        // Supabase 通信ラッパー関数
+        function supabaseFetch(endpoint, options) {
+            options = options || {};
+            options.headers = options.headers || {};
+            options.headers["apikey"] = SUPABASE_ANON_KEY;
+            options.headers["Authorization"] = "Bearer " + SUPABASE_ANON_KEY;
+            options.headers["Content-Type"] = "application/json";
+            return fetch(SUPABASE_URL + endpoint, options);
+        }
 
-function loadAll() {
-  document.getElementById('feedback-list').innerHTML = '<div class="loading"><div class="spinner"></div><br>読み込み中...</div>';
-  return Promise.all([sbGet('feedbacks','order=date.desc'), sbGet('bases','order=id.asc')]).then(function(results) {
-    var fbData = results[0], baseData = results[1];
-    feedbacks = (fbData||[]).map(function(f) { return Object.assign({}, f, { imgs: f.imgs ? JSON.parse(f.imgs) : [], status: f.status||'未完了' }); });
-    bases = (baseData||[]).map(function(b) { return b.name; });
-    refreshBaseSelects();
-    refreshPersonFilter();
-    refreshBaseTabs();
-    renderList();
-  }).catch(function() {
-    document.getElementById('feedback-list').innerHTML = '<div class="empty">⚠️ データの読み込みに失敗しました。</div>';
-  });
-}
+        // 全一括データ取得
+        function loadAllData() {
+            Promise.all([
+                supabaseFetch("/rest/v1/bases?order=name.asc"),
+                supabaseFetch("/rest/v1/feedbacks?order=date.desc"),
+                supabaseFetch("/rest/v1/manuals?order=created_at.desc")
+            ])
+            .then(function(responses) {
+                return Promise.all(responses.map(function(r) { return r.json(); }));
+            })
+            .then(function(data) {
+                allBases = data[0] || [];
+                allFeedbacks = data[1] || [];
+                allManuals = data[2] || [];
+                
+                updateBaseUIs();
+                applyFilters();
+                renderManuals();
+                if (!document.getElementById('admin-dashboard').classList.contains('hidden')) {
+                    updateAdminStats();
+                    renderCharts();
+                    calculateStorageUsage();
+                }
+            })
+            .catch(function(err) {
+                console.error(err);
+                alert("データの読み込みに失敗しました。公開済みのURLから直接開いているか確認してください。");
+            });
+        }
 
-function refreshBaseSelects() {
-  var opts = '<option value="">選択してください</option>' + bases.map(function(b){ return '<option value="'+esc(b)+'">'+esc(b)+'</option>'; }).join('');
-  document.getElementById('in-base').innerHTML = opts;
-  var fOpts = '<option value="">すべて</option>' + bases.map(function(b){ return '<option value="'+esc(b)+'">'+esc(b)+'</option>'; }).join('');
-  document.getElementById('filter-base').innerHTML = fOpts;
-}
+        // 拠点関係のUI（プルダウン、管理リスト、サブナビ）を生成・更新
+        function updateBaseUIs() {
+            // プルダウン & 検索フィルター
+            var filterPerson = document.getElementById('filter-person');
+            var formBase = document.getElementById('form-base');
+            var settingsList = document.getElementById('settings-base-list');
+            var baseTabsContainer = document.getElementById('base-tabs-container');
 
-function refreshPersonFilter() {
-  var persons = [];
-  feedbacks.forEach(function(f) { if(f.person && persons.indexOf(f.person)===-1) persons.push(f.person); });
-  persons.sort();
-  var el = document.getElementById('filter-person');
-  var cur = el.value;
-  el.innerHTML = '<option value="">すべて</option>' + persons.map(function(p){ return '<option value="'+esc(p)+'">'+esc(p)+'</option>'; }).join('');
-  if(cur) el.value = cur;
-}
+            // 対応者ユニークリスト作成
+            var persons = {};
+            allFeedbacks.forEach(function(f) { if(f.person) persons[f.person] = true; });
+            
+            filterPerson.innerHTML = '<option value="">(すべて)</option>';
+            Object.keys(persons).sort().forEach(function(p) {
+                filterPerson.innerHTML += '<option value="' + esc(p) + '">' + esc(p) + '</option>';
+            });
 
-function refreshBaseTabs() {
-  var el = document.getElementById('base-tabs');
-  el.innerHTML = bases.map(function(b) {
-    return '<button class="tab base-tab" onclick="showBaseTab(\''+b.replace(/'/g,"\\'")+'\')" id="btab-'+encodeURIComponent(b)+'">🏢 '+esc(b)+'</button>';
-  }).join('');
-}
+            formBase.innerHTML = '';
+            settingsList.innerHTML = '';
+            
+            // 一覧の拠点別タブの生成
+            baseTabsContainer.innerHTML = '<button id="subtab-all" onclick="setBaseFilter(\'\')" class="sub-tab px-4 py-2 text-sm font-medium rounded-lg transition border-b-2 bg-blue-50 text-blue-600 border-blue-500 flex-shrink-0">📦 すべての拠点</button>';
 
-function renderBases() {
-  var el = document.getElementById('base-list');
-  if(!bases.length) { el.innerHTML = '<span style="color:#a0aec0;font-size:.85rem;">拠点が登録されていません</span>'; return; }
-  el.innerHTML = bases.map(function(b, i) {
-    return '<div class="base-tag"><span>'+esc(b)+'</span><button class="btn btn-danger" style="padding:2px 8px;font-size:.75rem;" onclick="removeBase('+i+')">削除</button></div>';
-  }).join('');
-}
+            allBases.forEach(function(b) {
+                formBase.innerHTML += '<option value="' + esc(b.name) + '">' + esc(b.name) + '</option>';
+                
+                settingsList.innerHTML += '<li class="flex justify-between items-center py-2.5 text-sm font-medium text-gray-700"><span><i class="fa-solid fa-location-dot text-gray-400 mr-2"></i>' + esc(b.name) + '</span><button onclick="deleteBase(' + b.id + ')" class="text-rose-500 hover:text-rose-700 text-xs font-semibold">削除</button></li>';
+                
+                var tabId = "subtab-" + btoa(unescape(encodeURIComponent(b.name))).replace(/=/g, "");
+                baseTabsContainer.innerHTML += '<button id="' + tabId + '" onclick="setBaseFilter(\'' + esc(b.name) + '\')" class="sub-tab px-4 py-2 text-sm font-medium rounded-lg transition border-b-2 text-gray-500 border-transparent hover:bg-gray-50 flex-shrink-0"><i class="fa-solid fa-building text-xs mr-1.5"></i>' + esc(b.name) + '</button>';
+            });
 
-function addBase() {
-  var v = document.getElementById('new-base-name').value.trim();
-  if(!v) return alert('拠点名を入力してください');
-  if(bases.indexOf(v)!==-1) return alert('同じ名前の拠点がすでに存在します');
-  sbPost('bases', { name: v }).then(function() {
-    bases.push(v);
-    document.getElementById('new-base-name').value = '';
-    renderBases(); refreshBaseSelects(); refreshBaseTabs();
-    toast('拠点を追加しました');
-  });
-}
+            if(activeBaseFilter) setBaseFilter(activeBaseFilter);
+        }
 
-function removeBase(i) {
-  if(!confirm('「'+bases[i]+'」を削除しますか？')) return;
-  var name = bases[i];
-  sbGet('bases', 'name=eq.'+encodeURIComponent(name)).then(function(data) {
-    if(data && data[0]) return sbDelete('bases', data[0].id);
-  }).then(function() {
-    bases.splice(i, 1);
-    renderBases(); refreshBaseSelects(); refreshBaseTabs();
-    toast('拠点を削除しました');
-  });
-}
+        // フィルター適用処理
+        function applyFilters() {
+            var person = document.getElementById('filter-person').value;
+            var status = document.getElementById('filter-status').value;
+            var start = document.getElementById('filter-date-start').value;
+            var end = document.getElementById('filter-date-end').value;
+            var search = document.getElementById('filter-search').value.toLowerCase();
 
-function makeFbCard(f) {
-  return '<div class="fb-card '+(f.status==='完了'?'done':'')+'">'
-    +'<div class="fb-card-header"><span class="fb-num"># '+esc(f.num)+'</span><span class="fb-date">'+f.date+'</span></div>'
-    +'<div class="fb-card-body">'
-    +'<span class="fb-base">'+esc(f.base)+'</span>'
-    +(f.person?'<span style="display:inline-block;background:#e9d8fd;color:#553c9a;border-radius:4px;font-size:.75rem;padding:2px 8px;margin-left:4px;margin-bottom:8px;">👤 '+esc(f.person)+'</span>':'')
-    +'<span onclick="toggleStatus(\''+f.id+'\')" style="display:inline-block;cursor:pointer;border-radius:4px;font-size:.75rem;padding:2px 8px;margin-left:4px;margin-bottom:8px;background:'+(f.status==='完了'?'#c6f6d5':'#fed7d7')+';color:'+(f.status==='完了'?'#276749':'#9b2c2c')+'">'+(f.status==='完了'?'✅ 完了':'⏳ 未完了')+'</span>'
-    +'<div class="fb-content">'+esc(f.content)+'</div>'
-    +(f.imgs&&f.imgs.length?'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">'+f.imgs.map(function(img,i){ return '<img class="fb-img" src="'+img+'" alt="画像'+(i+1)+'" onclick="openModal(\''+f.id+'\','+i+')">'; }).join('')+'</div>':'')
-    +'<div class="fb-actions">'
-    +'<button class="btn btn-sm" style="background:#ecc94b;color:#744210;" onclick="editFeedback(\''+f.id+'\')">✏️ 編集</button>'
-    +'<button class="btn btn-sm btn-danger" onclick="deleteFeedback(\''+f.id+'\')">🗑️ 削除</button>'
-    +'</div></div></div>';
-}
+            var filtered = allFeedbacks.filter(function(f) {
+                if (activeBaseFilter && f.base !== activeBaseFilter) return false;
+                if (person && f.person !== person) return false;
+                if (status && f.status !== status) return false;
+                if (start && f.date < start) return false;
+                if (end && f.date > end) return false;
+                if (search && !(f.num.toLowerCase().includes(search) || f.content.toLowerCase().includes(search))) return false;
+                return true;
+            });
 
-function renderList() {
-  var base=document.getElementById('filter-base').value;
-  var person=document.getElementById('filter-person').value;
-  var status=document.getElementById('filter-status').value;
-  var from=document.getElementById('filter-from').value;
-  var to=document.getElementById('filter-to').value;
-  var kw=document.getElementById('filter-keyword').value.toLowerCase();
-  var list = feedbacks.filter(function(f) {
-    if(base && f.base!==base) return false;
-    if(person && (f.person||'')!==person) return false;
-    if(status && (f.status||'未完了')!==status) return false;
-    if(from && f.date<from) return false;
-    if(to && f.date>to) return false;
-    if(kw && !(f.num.toLowerCase().includes(kw)||f.content.toLowerCase().includes(kw))) return false;
-    return true;
-  }).sort(function(a,b){ return b.date.localeCompare(a.date); });
-  document.getElementById('result-count').textContent = list.length+' 件';
-  var el = document.getElementById('feedback-list');
-  if(!list.length) { el.innerHTML='<div class="empty">📭 該当するフィードバックがありません</div>'; return; }
-  el.innerHTML = list.map(makeFbCard).join('');
-}
+            document.getElementById('results-count').innerText = filtered.length + " 件のデータ";
+            renderList(filtered);
+        }
 
-function showBaseTab(base) {
-  currentBase = base;
-  document.querySelectorAll('#main-tabs .tab').forEach(function(el){ el.classList.remove('active'); });
-  document.querySelectorAll('#base-tabs .tab').forEach(function(el){ el.classList.remove('active'); });
-  var btn = document.getElementById('btab-'+encodeURIComponent(base));
-  if(btn) btn.classList.add('active');
-  ['list','input','settings','admin'].forEach(function(id){ document.getElementById('tab-'+id).style.display='none'; });
-  document.getElementById('tab-base').style.display='';
-  document.getElementById('base-tab-title').textContent = '🏢 '+base+' のフィードバック';
-  var persons = [];
-  feedbacks.forEach(function(f){ if(f.base===base && f.person && persons.indexOf(f.person)===-1) persons.push(f.person); });
-  persons.sort();
-  document.getElementById('bf-person').innerHTML = '<option value="">すべて</option>' + persons.map(function(p){ return '<option value="'+esc(p)+'">'+esc(p)+'</option>'; }).join('');
-  document.getElementById('bf-status').value='';
-  document.getElementById('bf-person').value='';
-  document.getElementById('bf-from').value='';
-  document.getElementById('bf-to').value='';
-  document.getElementById('bf-kw').value='';
-  renderBaseList();
-}
+        function clearFilters() {
+            document.getElementById('filter-person').value = "";
+            document.getElementById('filter-status').value = "";
+            document.getElementById('filter-date-start').value = "";
+            document.getElementById('filter-date-end').value = "";
+            document.getElementById('filter-search').value = "";
+            setBaseFilter("");
+        }
 
-function renderBaseList() {
-  var status=document.getElementById('bf-status').value;
-  var person=document.getElementById('bf-person').value;
-  var from=document.getElementById('bf-from').value;
-  var to=document.getElementById('bf-to').value;
-  var kw=document.getElementById('bf-kw').value.toLowerCase();
-  var list = feedbacks.filter(function(f) {
-    if(f.base!==currentBase) return false;
-    if(status && (f.status||'未完了')!==status) return false;
-    if(person && (f.person||'')!==person) return false;
-    if(from && f.date<from) return false;
-    if(to && f.date>to) return false;
-    if(kw && !(f.num.toLowerCase().includes(kw)||f.content.toLowerCase().includes(kw))) return false;
-    return true;
-  }).sort(function(a,b){ return b.date.localeCompare(a.date); });
-  document.getElementById('base-result-count').textContent = list.length+' 件';
-  var el = document.getElementById('base-feedback-list');
-  if(!list.length) { el.innerHTML='<div class="empty">📭 該当するフィードバックがありません</div>'; return; }
-  el.innerHTML = list.map(makeFbCard).join('');
-}
+        // リスト表示のレンダリング
+        function renderList(list) {
+            var container = document.getElementById('feedback-list-container');
+            container.innerHTML = '';
 
-function clearBaseFilters() {
-  document.getElementById('bf-status').value='';
-  document.getElementById('bf-person').value='';
-  document.getElementById('bf-from').value='';
-  document.getElementById('bf-to').value='';
-  document.getElementById('bf-kw').value='';
-  renderBaseList();
-}
+            if(list.length === 0) {
+                container.className = "col-span-full py-12 text-center";
+                container.innerHTML = '<div class="text-gray-400 text-4xl mb-2"><i class="fa-regular fa-folder-open"></i></div><p class="text-gray-500 font-medium">条件に一致するフィードバックはありません。</p>';
+                return;
+            }
+            container.className = "grid grid-cols-1 md:grid-cols-2 gap-4";
 
-function saveFeedback() {
-  var num=document.getElementById('in-num').value.trim();
-  var date=document.getElementById('in-date').value;
-  var base=document.getElementById('in-base').value;
-  var content=document.getElementById('in-content').value.trim();
-  if(!num||!date||!base||!content) return alert('番号・日付・拠点・内容は必須です');
-  var person=document.getElementById('in-person').value.trim();
-  var status=document.getElementById('in-status').value;
-  var btn=document.getElementById('save-btn');
-  btn.disabled=true;
-  var imgs = window._pendingImgs.slice();
-  var imgUrls = [];
-  function uploadNext(i) {
-    if(i>=imgs.length) return Promise.resolve();
-    var src=imgs[i];
-    if(src.startsWith('http')){ imgUrls.push(src); return uploadNext(i+1); }
-    btn.textContent='画像アップロード中... ('+(i+1)+'/'+imgs.length+')';
-    return uploadImage(src,'img'+i+'.jpg').then(function(url){ imgUrls.push(url); return uploadNext(i+1); });
-  }
-  uploadNext(0).then(function() {
-    btn.textContent='保存中...';
-    var payload={ num:num, date:date, base:base, person:person, content:content, status:status, imgs:JSON.stringify(imgUrls) };
-    var p;
-    if(editId!==null) {
-      p = sbPatch('feedbacks', editId, payload).then(function() {
-        var idx=feedbacks.findIndex(function(f){ return String(f.id)===String(editId); });
-        if(idx>-1) feedbacks[idx]=Object.assign({},feedbacks[idx],payload,{imgs:imgUrls});
-      });
-    } else {
-      var id=Date.now();
-      p = sbPost('feedbacks', Object.assign({id:id},payload)).then(function() {
-        feedbacks.unshift(Object.assign({id:id},payload,{imgs:imgUrls}));
-      });
-    }
-    return p;
-  }).then(function() {
-    refreshPersonFilter();
-    resetForm();
-    toast('✅ 保存しました！');
-    showTab('list');
-  }).catch(function(e) {
-    alert('保存に失敗しました。\n'+e.message);
-  }).then(function() {
-    btn.textContent='💾 保存'; btn.disabled=false;
-  });
-}
+            list.forEach(function(item) {
+                var imagesHtml = '';
+                if (item.imgs) {
+                    try {
+                        var urls = JSON.parse(item.imgs);
+                        if (urls.length > 0) {
+                            imagesHtml = '<div class="grid grid-cols-2 gap-1.5 mt-3">';
+                            urls.forEach(function(url) {
+                                imagesHtml += '<div class="aspect-video bg-gray-100 rounded-lg overflow-hidden border border-gray-100 hover:opacity-90 transition"><img src="' + esc(url) + '" onclick="openImageModal(\'' + esc(url) + '\')" class="w-full h-full object-cover cursor-zoom-in"></div>';
+                            });
+                            imagesHtml += '</div>';
+                        }
+                    } catch(e) { /* 旧データ互換用 */ }
+                }
 
-function deleteFeedback(id) {
-  if(!confirm('このフィードバックを削除しますか？')) return;
-  sbDelete('feedbacks', id).then(function() {
-    feedbacks = feedbacks.filter(function(f){ return String(f.id)!==String(id); });
-    refreshPersonFilter(); renderList();
-    if(document.getElementById('tab-base').style.display!=='none') renderBaseList();
-    toast('🗑️ 削除しました');
-  });
-}
+                var statusClass = item.status === '完了' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200';
+                var personBadge = item.person ? '<span class="px-2 py-0.5 bg-purple-50 text-purple-700 text-xs font-semibold rounded border border-purple-100"><i class="fa-solid fa-user text-[10px] mr-1"></i>' + esc(item.person) + '</span>' : '';
 
-function toggleStatus(id) {
-  var f = feedbacks.find(function(f){ return String(f.id)===String(id); });
-  if(!f) return;
-  var newStatus = (f.status||'未完了')==='未完了'?'完了':'未完了';
-  sbPatch('feedbacks', id, { status: newStatus }).then(function() {
-    f.status=newStatus;
-    renderList();
-    if(document.getElementById('tab-base').style.display!=='none') renderBaseList();
-    toast(newStatus==='完了'?'✅ 完了にしました':'⏳ 未完了に戻しました');
-  });
-}
+                var card = document.createElement('div');
+                card.className = "bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between hover:shadow-md transition duration-200";
+                card.innerHTML = '\
+                    <div>\
+                        <div class="flex justify-between items-start gap-2 mb-2">\
+                            <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">No.' + esc(item.num) + '</span>\
+                            <button onclick="toggleStatus(' + item.id + ', \'' + esc(item.status) + '\')" class="px-2.5 py-0.5 text-xs font-bold rounded-full border cursor-pointer hover:scale-105 transition ' + statusClass + '">' + esc(item.status || '未完了') + '</button>\
+                        </div>\
+                        <div class="flex flex-wrap items-center gap-1.5 text-xs font-medium text-gray-400 mb-3">\
+                            <span><i class="fa-regular fa-calendar mr-1"></i>' + esc(item.date) + '</span>\
+                            <span>•</span>\
+                            <span><i class="fa-solid fa-building mr-1"></i>' + esc(item.base) + '</span>\
+                            ' + personBadge + '\
+                        </div>\
+                        <p class="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap break-all font-medium">' + esc(item.content) + '</p>\
+                        ' + imagesHtml + '\
+                    </div>\
+                    <div class="flex justify-end space-x-3 mt-4 pt-3 border-t border-gray-50 text-xs font-bold">\
+                        <button onclick="startEdit(' + item.id + ')" class="text-gray-500 hover:text-blue-600 transition"><i class="fa-regular fa-pen-to-square mr-1"></i>編集</button>\
+                        <button onclick="deleteFeedback(' + item.id + ')" class="text-gray-400 hover:text-rose-600 transition"><i class="fa-regular fa-trash-can mr-1"></i>削除</button>\
+                    </div>';
+                container.appendChild(card);
+            });
+        }
 
-function editFeedback(id) {
-  var f = feedbacks.find(function(f){ return String(f.id)===String(id); });
-  if(!f) return;
-  showTab('input');
-  setTimeout(function() {
-    document.getElementById('in-num').value=f.num;
-    document.getElementById('in-date').value=f.date;
-    document.getElementById('in-base').value=f.base;
-    document.getElementById('in-content').value=f.content;
-    document.getElementById('in-person').value=f.person||'';
-    document.getElementById('in-status').value=f.status||'未完了';
-    window._pendingImgs=f.imgs?f.imgs.slice():[];
-    var list=document.getElementById('img-preview-list');
-    list.innerHTML='';
-    (f.imgs||[]).forEach(function(img,i) {
-      var div=document.createElement('div');
-      div.style.cssText='position:relative;display:inline-block;';
-      div.innerHTML='<img src="'+img+'" style="height:100px;border-radius:6px;object-fit:cover;"><button onclick="removePreviewImg('+i+',this.parentNode)" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:white;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:1;">✕</button>';
-      list.appendChild(div);
-    });
-    if(f.imgs&&f.imgs.length) document.getElementById('img-preview-wrap').style.display='';
-    editId=id;
-  }, 50);
-}
+        // マニュアルのレンダリング表示
+        function renderManuals() {
+            var userContainer = document.getElementById('user-manuals-container');
+            var adminList = document.getElementById('admin-manuals-list');
+            
+            userContainer.innerHTML = '';
+            adminList.innerHTML = '';
 
-function resetForm() {
-  ['in-num','in-date','in-content','in-person'].forEach(function(id){ document.getElementById(id).value=''; });
-  document.getElementById('in-base').value='';
-  document.getElementById('in-status').value='未完了';
-  document.getElementById('in-img').value='';
-  document.getElementById('img-preview-list').innerHTML='';
-  document.getElementById('img-preview-wrap').style.display='none';
-  window._pendingImgs=[];
-  editId=null;
-  document.getElementById('in-date').value=new Date().toISOString().split('T')[0];
-}
+            if (allManuals.length === 0) {
+                userContainer.innerHTML = '<p class="text-gray-500 col-span-full text-center py-6">登録されているマニュアルはありません。</p>';
+                adminList.innerHTML = '<p class="text-gray-400 text-sm py-3">登録されているマニュアルはありません。</p>';
+                return;
+            }
 
-function previewImgs(input) {
-  var files=Array.from(input.files);
-  if(!files.length) return;
-  document.getElementById('img-preview-wrap').style.display='';
-  var list=document.getElementById('img-preview-list');
-  files.forEach(function(file) {
-    var reader=new FileReader();
-    reader.onload=function(e) {
-      window._pendingImgs.push(e.target.result);
-      var idx=window._pendingImgs.length-1;
-      var div=document.createElement('div');
-      div.style.cssText='position:relative;display:inline-block;';
-      div.innerHTML='<img src="'+e.target.result+'" style="height:100px;border-radius:6px;object-fit:cover;"><button onclick="removePreviewImg('+idx+',this.parentNode)" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:white;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:1;">✕</button>';
-      list.appendChild(div);
-    };
-    reader.readAsDataURL(file);
-  });
-}
+            allManuals.forEach(function(m) {
+                // 一般閲覧用カード
+                userContainer.innerHTML += '\
+                    <a href="' + esc(m.url) + '" target="_blank" class="flex items-center justify-between p-4 bg-gray-50 hover:bg-blue-50/50 border border-gray-200 rounded-2xl transition group">\
+                        <div class="flex items-center space-x-3 overflow-hidden">\
+                            <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white transition">\
+                                <i class="fa-solid fa-file-lines text-lg"></i>\
+                            </div>\
+                            <span class="font-semibold text-gray-700 truncate">' + esc(m.title) + '</span>\
+                        </div>\
+                        <i class="fa-solid fa-arrow-up-right-from-square text-gray-400 group-hover:text-blue-600 transition ml-2 text-sm"></i>\
+                    </a>';
 
-function removePreviewImg(idx, el) {
-  window._pendingImgs.splice(idx,1);
-  el.remove();
-  document.querySelectorAll('#img-preview-list button').forEach(function(btn,i){ btn.setAttribute('onclick','removePreviewImg('+i+',this.parentNode)'); });
-}
+                // 管理者用編集リスト
+                adminList.innerHTML += '\
+                    <li class="flex justify-between items-center py-3 text-sm">\
+                        <div class="overflow-hidden mr-4">\
+                            <p class="font-semibold text-gray-700 truncate">' + esc(m.title) + '</p>\
+                            <p class="text-xs text-gray-400 truncate">' + esc(m.url) + '</p>\
+                        </div>\
+                        <button onclick="deleteManual(' + m.id + ')" class="text-rose-500 hover:text-rose-700 font-semibold flex-shrink-0 text-xs">削除</button>\
+                    </li>';
+            });
+        }
 
-function openModal(id, imgIdx) {
-  imgIdx=imgIdx||0;
-  var f=feedbacks.find(function(f){ return String(f.id)===String(id); });
-  if(!f||!f.imgs||!f.imgs.length) return;
-  document.getElementById('modal-img').src=f.imgs[imgIdx];
-  document.getElementById('img-modal').classList.add('open');
-}
-function closeModal() { document.getElementById('img-modal').classList.remove('open'); }
+        // 新規マニュアルの保存処理 (管理者限定)
+        function saveManual() {
+            var title = document.getElementById('manual-title').value.trim();
+            var url = document.getElementById('manual-url').value.trim();
 
-function clearFilters() {
-  ['filter-base','filter-person','filter-status','filter-from','filter-to','filter-keyword'].forEach(function(id){ document.getElementById(id).value=''; });
-  renderList();
-}
+            if (!title || !url) {
+                alert("マニュアル名とURLを入力してください。");
+                return;
+            }
 
-function exportExcel() {
-  var base=document.getElementById('filter-base').value, person=document.getElementById('filter-person').value;
-  var status=document.getElementById('filter-status').value, from=document.getElementById('filter-from').value;
-  var to=document.getElementById('filter-to').value, kw=document.getElementById('filter-keyword').value.toLowerCase();
-  var list=feedbacks.filter(function(f) {
-    if(base&&f.base!==base)return false;
-    if(person&&(f.person||'')!==person)return false;
-    if(status&&(f.status||'未完了')!==status)return false;
-    if(from&&f.date<from)return false;
-    if(to&&f.date>to)return false;
-    if(kw&&!(f.num.toLowerCase().includes(kw)||f.content.toLowerCase().includes(kw)))return false;
-    return true;
-  }).sort(function(a,b){ return b.date.localeCompare(a.date); });
-  if(!list.length) return alert('出力するデータがありません');
-  var BOM='\uFEFF';
-  var headers=['番号','日付','拠点','対応者','ステータス','内容','画像URL'];
-  var rows=list.map(function(f) {
-    return [f.num,f.date,f.base,f.person||'',f.status||'未完了',f.content.replace(/\n/g,' '),(f.imgs||[]).join(' | ')].map(function(v){ return '"'+String(v).replace(/"/g,'""')+'"'; }).join(',');
-  });
-  var csv=BOM+[headers.join(',')].concat(rows).join('\r\n');
-  var a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
-  a.download='フィードバック_'+new Date().toISOString().slice(0,10)+'.csv';
-  a.click();
-  toast('📥 Excel出力しました');
-}
+            supabaseFetch("/rest/v1/manuals", {
+                method: "POST",
+                body: JSON.stringify({ title: title, url: url })
+            })
+            .then(function() {
+                document.getElementById('manual-title').value = "";
+                document.getElementById('manual-url').value = "";
+                loadAllData();
+            });
+        }
 
-function checkPw() {
-  var pw=document.getElementById('admin-pw').value;
-  if(pw===ADMIN_PW) {
-    document.getElementById('admin-lock').style.display='none';
-    document.getElementById('admin-content').style.display='';
-    document.getElementById('pw-error').style.display='none';
-    renderStats();
-  } else {
-    document.getElementById('pw-error').style.display='';
-    document.getElementById('admin-pw').value='';
-  }
-}
+        // マニュアルの削除処理
+        function deleteManual(id) {
+            if (!confirm("このマニュアルを削除してよろしいですか？")) return;
+            supabaseFetch("/rest/v1/manuals?id=eq." + id, { method: "DELETE" })
+            .then(function() { loadAllData(); });
+        }
 
-function lockAdmin() {
-  document.getElementById('admin-lock').style.display='';
-  document.getElementById('admin-content').style.display='none';
-  document.getElementById('admin-pw').value='';
-  Object.keys(charts).forEach(function(k){ charts[k].destroy(); });
-  charts={};
-}
+        // ステータスのトグル（カード上ワンクリック）
+        function toggleStatus(id, currentStatus) {
+            var nextStatus = currentStatus === "完了" ? "未完了" : "完了";
+            supabaseFetch("/rest/v1/feedbacks?id=eq." + id, {
+                method: "PATCH",
+                body: JSON.stringify({ status: nextStatus })
+            })
+            .then(function() { loadAllData(); });
+        }
 
-function renderStats() {
-  var total=feedbacks.length;
-  var done=feedbacks.filter(function(f){ return f.status==='完了'; }).length;
-  var undone=total-done;
-  var persons=[];
-  feedbacks.forEach(function(f){ if(f.person && persons.indexOf(f.person)===-1) persons.push(f.person); });
-  document.getElementById('stat-cards').innerHTML =
-    '<div class="stat-card"><div class="stat-num">'+total+'</div><div class="stat-label">総件数</div></div>'
-    +'<div class="stat-card"><div class="stat-num" style="color:#38a169">'+done+'</div><div class="stat-label">完了件数</div></div>'
-    +'<div class="stat-card"><div class="stat-num" style="color:#e53e3e">'+undone+'</div><div class="stat-label">未完了件数</div></div>'
-    +'<div class="stat-card"><div class="stat-num" style="color:#805ad5">'+persons.length+'</div><div class="stat-label">対応者数</div></div>';
-  renderUsage();
-  var colors=['#2b6cb0','#38a169','#c05621','#805ad5','#d69e2e','#e53e3e','#319795','#dd6b20'];
-  var personCounts={};
-  feedbacks.forEach(function(f){ var p=f.person||'未設定'; personCounts[p]=(personCounts[p]||0)+1; });
-  renderChart('chart-person','bar',Object.keys(personCounts),Object.values(personCounts),colors);
-  renderChart('chart-status','doughnut',['完了','未完了'],[done,undone],['#38a169','#e53e3e']);
-  var baseCounts={};
-  feedbacks.forEach(function(f){ baseCounts[f.base]=(baseCounts[f.base]||0)+1; });
-  renderChart('chart-base','bar',Object.keys(baseCounts),Object.values(baseCounts),colors);
-  var today=new Date(), dateMap={};
-  for(var i=29;i>=0;i--){ var d=new Date(today); d.setDate(d.getDate()-i); dateMap[d.toISOString().slice(0,10)]=0; }
-  feedbacks.forEach(function(f){ if(dateMap[f.date]!==undefined) dateMap[f.date]++; });
-  renderChart('chart-date','line',Object.keys(dateMap),Object.values(dateMap),['#2b6cb0']);
-}
+        // 添付画像のファイル選択処理 -> Base64変換
+        function handleFileSelect(event) {
+            var files = event.target.files;
+            var container = document.getElementById('image-preview-container');
+            
+            Array.from(files).forEach(function(file) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    var base64Data = e.target.result;
+                    selectedFilesBase64.push(base64Data);
+                    renderImagePreviews();
+                };
+                reader.readAsDataURL(file);
+            });
+            event.target.value = ""; // リセット
+        }
 
-function renderUsage() {
-  var rowCount = feedbacks.length;
-  var textBytes = feedbacks.reduce(function(acc, f) {
-    return acc + (f.num||'').length + (f.date||'').length + (f.base||'').length
-      + (f.person||'').length + (f.content||'').length + (f.status||'').length;
-  }, 0);
-  var dbEstimateKB = Math.round(textBytes / 1024 * 10) / 10;
-  var dbLimitMB = 500;
-  var dbPct = Math.min(100, Math.round(dbEstimateKB / (dbLimitMB * 1024) * 100 * 10) / 10);
+        function renderImagePreviews() {
+            var container = document.getElementById('image-preview-container');
+            container.innerHTML = '';
+            selectedFilesBase64.forEach(function(base64, index) {
+                container.innerHTML += '<div class="relative aspect-video border rounded-lg overflow-hidden bg-gray-50"><img src="' + base64 + '" class="w-full h-full object-cover"><button onclick="removeSelectedImage(' + index + ')" class="absolute top-1 right-1 bg-black/60 hover:bg-black/80 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-xmark"></i></button></div>';
+            });
+        }
 
-  function bar(pct, color) {
-    return '<div style="background:#e2e8f0;border-radius:20px;height:10px;margin:6px 0 2px;">'
-      +'<div style="background:'+color+';border-radius:20px;height:10px;width:'+pct+'%;transition:width .5s;"></div></div>';
-  }
-  function colorFor(pct) { return pct < 60 ? '#38a169' : pct < 85 ? '#d69e2e' : '#e53e3e'; }
+        function removeSelectedImage(index) {
+            selectedFilesBase64.splice(index, 1);
+            renderImagePreviews();
+        }
 
-  // 全画像URLを収集
-  var allImgs = [];
-  feedbacks.forEach(function(f) { (f.imgs||[]).forEach(function(url){ if(url) allImgs.push(url); }); });
-  var imgCount = allImgs.length;
+        // フィードバックデータの保存＆画像アップロード（Storage）統合
+        function saveFeedback() {
+            var editId = document.getElementById('edit-id').value;
+            var num = document.getElementById('form-num').value.trim();
+            var date = document.getElementById('form-date').value;
+            var base = document.getElementById('form-base').value;
+            var person = document.getElementById('form-person').value.trim();
+            var status = document.querySelector('name[name="form-status"]:checked') ? document.querySelector('name[name="form-status"]:checked').value : '未完了';
+            var content = document.getElementById('form-content').value.trim();
 
-  document.getElementById('usage-content').innerHTML =
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">'
-    +'<div style="background:#f7fafc;border-radius:8px;padding:14px;">'
-    +'<div style="font-weight:700;font-size:.9rem;color:#2d3748;margin-bottom:4px;">🗄️ データベース</div>'
-    +'<div style="font-size:.82rem;color:#718096;">フィードバック件数：<b style="color:#2d3748;">'+rowCount+' 件</b></div>'
-    +'<div style="font-size:.82rem;color:#718096;">テキストデータ概算：<b style="color:#2d3748;">'+dbEstimateKB+' KB</b></div>'
-    +bar(dbPct, colorFor(dbPct))
-    +'<div style="font-size:.78rem;color:#a0aec0;">上限 '+dbLimitMB+' MB のうち約 '+dbPct+'% 使用</div>'
-    +'</div>'
-    +'<div style="background:#f7fafc;border-radius:8px;padding:14px;" id="storage-box">'
-    +'<div style="font-weight:700;font-size:.9rem;color:#2d3748;margin-bottom:4px;">🖼️ ストレージ（画像）</div>'
-    +'<div style="font-size:.82rem;color:#718096;">添付画像数：<b style="color:#2d3748;">'+imgCount+' 枚</b></div>'
-    +'<div style="font-size:.82rem;color:#718096;" id="storage-size">📡 画像サイズ取得中...</div>'
-    +'<div id="storage-bar"></div>'
-    +'<div style="font-size:.78rem;color:#a0aec0;" id="storage-pct"></div>'
-    +'</div>'
-    +'<div style="grid-column:1/-1;background:#ebf8ff;border-radius:8px;padding:12px;font-size:.82rem;color:#2c5282;">'
-    +'📋 <b>Supabase 無料枠</b>：DB 500MB ／ ストレージ 1GB ／ 月間アクセス 50,000件'
-    +'</div>'
-    +'</div>';
+            if(!num || !date || !base || !content) {
+                alert("必須項目(*)を入力してください。");
+                return;
+            }
 
-  // 各画像にHEADリクエストを送り実際のバイト数を取得
-  var totalBytes = 0;
-  var done = 0;
-  if(imgCount === 0) {
-    document.getElementById('storage-size').innerHTML = '使用量：<b style="color:#2d3748;">0 KB</b>';
-    document.getElementById('storage-bar').innerHTML = bar(0, '#38a169');
-    document.getElementById('storage-pct').textContent = '上限 1 GB のうち 0% 使用';
-    return;
-  }
-  allImgs.forEach(function(url) {
-    fetch(url, { method: 'HEAD' }).then(function(res) {
-      var len = parseInt(res.headers.get('content-length')||'0', 10);
-      totalBytes += len;
-    }).catch(function() {
-      // 取得失敗は0として扱う
-    }).then(function() {
-      done++;
-      if(done === imgCount) {
-        var storageMB = Math.round(totalBytes / 1024 / 1024 * 100) / 100;
-        var storageKB = Math.round(totalBytes / 1024 * 10) / 10;
-        var displaySize = storageMB >= 1 ? storageMB+' MB' : storageKB+' KB';
-        var storageLimitMB = 1024;
-        var storagePct = Math.min(100, Math.round(storageMB / storageLimitMB * 100 * 100) / 100);
-        document.getElementById('storage-size').innerHTML = '使用量：<b style="color:#2d3748;">'+displaySize+'</b>（'+imgCount+' 枚合計）';
-        document.getElementById('storage-bar').innerHTML = bar(storagePct, colorFor(storagePct));
-        document.getElementById('storage-pct').textContent = '上限 1 GB のうち '+storagePct+'% 使用';
-      }
-    });
-  });
-}
+            var btn = document.getElementById('btn-save');
+            btn.disabled = true;
+            btn.innerText = "⏳ 保存中...";
 
-function renderChart(id, type, labels, data, colors) {
-  if(charts[id]) charts[id].destroy();
-  var ctx=document.getElementById(id).getContext('2d');
-  charts[id]=new Chart(ctx, {
-    type:type,
-    data:{ labels:labels, datasets:[{ data:data, backgroundColor:type==='line'?'rgba(43,108,176,.15)':colors, borderColor:type==='line'?'#2b6cb0':colors, borderWidth:type==='line'?2:1, fill:type==='line', tension:.3, pointRadius:type==='line'?3:undefined }] },
-    options:{ responsive:true, plugins:{ legend:{ display:type==='doughnut' } }, scales:type!=='doughnut'?{ y:{ beginAtZero:true, ticks:{ stepSize:1 } } }:{} }
-  });
-}
+            // 1. 各Base64画像を画像ストレージへアップロード
+            var uploadPromises = selectedFilesBase64.map(function(base64) {
+                if (base64.startsWith('http')) return Promise.resolve(base64); // すでにアップロード済みのURL
 
-function showTab(t) {
-  ['list','input','settings','admin','base'].forEach(function(id){ document.getElementById('tab-'+id).style.display=id===t?'':'none'; });
-  document.querySelectorAll('#main-tabs .tab').forEach(function(el,i){ el.classList.toggle('active',['list','input','settings','admin'][i]===t); });
-  document.querySelectorAll('#base-tabs .tab').forEach(function(el){ el.classList.remove('active'); });
-  if(t==='settings') renderBases();
-  if(t==='input') refreshBaseSelects();
-}
+                var ext = base64.split(';')[0].split('/')[1] || 'png';
+                var fileName = Date.now() + "_" + Math.random().toString(36).substring(2, 7) + "." + ext;
+                var block = base64.split(";base64,");
+                var contentType = block[0].split(":")[1];
+                var rawData = atob(block[1]);
+                var rawDataLength = rawData.length;
+                var u8Array = new Uint8Array(new ArrayBuffer(rawDataLength));
 
-document.getElementById('in-date').value=new Date().toISOString().split('T')[0];
-loadAll();
-</script>
+                for (var i = 0; i < rawDataLength; i++) {
+                    u8Array[i] = rawData.charCodeAt(i);
+                }
+
+                return supabaseFetch("/storage/v1/object/feedback-images/" + fileName, {
+                    method: "POST",
+                    headers: { "Content-Type": contentType },
+                    body: u8Array
+                })
+                .then(function(res) {
+                    if(!res.ok) throw new Error();
+                    return SUPABASE_URL + "/storage/v1/object/public/feedback-images/" + fileName;
+                });
+            });
+
+            Promise.all(uploadPromises)
+            .then(function(uploadedUrls) {
+                var payload = {
+                    num: num,
+                    date: date,
+                    base: base,
+                    person: person,
+                    status: status,
+                    content: content,
+                    imgs: JSON.stringify(uploadedUrls)
+                };
+
+                var method = editId ? "PATCH" : "POST";
+                var endpoint = editId ? "/rest/v1/feedbacks?id=eq." + editId : "/rest/v1/feedbacks";
+
+                return supabaseFetch(endpoint, { method: method, body: JSON.stringify(payload) });
+            })
+            .then(function() {
+                // フォームリセット
+                document.getElementById('edit-id').value = "";
+                document.getElementById('form-num').value = "";
+                document.getElementById('form-person').value = "";
+                document.getElementById('form-content').value = "";
+                selectedFilesBase64 = [];
+                document.getElementById('image-preview-container').innerHTML = "";
+                document.getElementById('btn-cancel').classList.add('hidden');
+                btn.innerHTML = "💾 保存する";
+                btn.disabled = false;
+                
+                switchTab('list');
+                loadAllData();
+            })
+            .catch(function() {
+                alert("保存または画像のアップロードに失敗しました。");
+                btn.innerHTML = "💾 保存する";
+                btn.disabled = false;
+            });
+        }
+
+        // 編集モード突入
+        function startEdit(id) {
+            var item = allFeedbacks.find(function(f) { return f.id === id; });
+            if (!item) return;
+
+            document.getElementById('edit-id').value = item.id;
+            document.getElementById('form-num').value = item.num;
+            document.getElementById('form-date').value = item.date;
+            document.getElementById('form-base').value = item.base;
+            document.getElementById('form-person').value = item.person || "";
+            document.getElementById('form-content').value = item.content;
+
+            var radio = document.querySelector('input[name="form-status"][value="' + (item.status || '未完了') + '"]');
+            if (radio) radio.checked = true;
+
+            selectedFilesBase64 = [];
+            if(item.imgs) {
+                try { selectedFilesBase64 = JSON.parse(item.imgs); } catch(e){}
+            }
+            renderImagePreviews();
+
+            document.getElementById('btn-cancel').classList.remove('hidden');
+            switchTab('input');
+        }
+
+        function cancelEdit() {
+            document.getElementById('edit-id').value = "";
+            document.getElementById('form-num').value = "";
+            document.getElementById('form-content').value = "";
+            selectedFilesBase64 = [];
+            document.getElementById('image-preview-container').innerHTML = "";
+            document.getElementById('btn-cancel').classList.add('hidden');
+            switchTab('list');
+        }
+
+        // フィードバック削除
+        function deleteFeedback(id) {
+            if(!confirm("このフィードバックを永久に削除してもよろしいですか？")) return;
+            supabaseFetch("/rest/v1/feedbacks?id=eq." + id, { method: "DELETE" })
+            .then(function() { loadAllData(); });
+        }
+
+        // 新規拠点追加
+        function addBase() {
+            var name = document.getElementById('new-base-name').value.trim();
+            if(!name) return;
+            supabaseFetch("/rest/v1/bases", {
+                method: "POST",
+                body: JSON.stringify({ name: name })
+            })
+            .then(function() {
+                document.getElementById('new-base-name').value = "";
+                loadAllData();
+            });
+        }
+
+        // 拠点削除
+        function deleteBase(id) {
+            if(!confirm("この拠点を削除してよろしいですか？")) return;
+            supabaseFetch("/rest/v1/bases?id=eq." + id, { method: "DELETE" })
+            .then(function() { loadAllData(); });
+        }
+
+        // Excel用 CSVエクスポート
+        function exportToCSV() {
+            if(allFeedbacks.length === 0) return alert("出力するデータがありません。");
+            
+            var csvRows = [];
+            csvRows.push(['ID', '番号', '日付', '拠点', '対応者', 'ステータス', '不備内容', '画像URL一覧'].join(','));
+
+            allFeedbacks.forEach(function(f) {
+                var imgUrls = '';
+                try { imgUrls = JSON.parse(f.imgs).join(' | '); } catch(e){}
+                
+                var row = [
+                    f.id,
+                    '"' + f.num.replace(/"/g, '""') + '"',
+                    f.date,
+                    '"' + f.base.replace(/"/g, '""') + '"',
+                    '"' + (f.person || '').replace(/"/g, '""') + '"',
+                    f.status || '未完了',
+                    '"' + f.content.replace(/"/g, '""').replace(/\n/g, ' ') + '"',
+                    '"' + imgUrls.replace(/"/g, '""') + '"'
+                ];
+                csvRows.push(row.join(','));
+            });
+
+            var csvString = "\uFEFF" + csvRows.join("\n"); // Excelの文字化け対策BOM
+            var blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+            var link = document.createElement("a");
+            var dateStr = new Date().toISOString().substring(0, 10);
+            
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute("download", "フィードバック_" + dateStr + ".csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // 管理者認証パスワードチェック
+        function checkAdminPassword() {
+            var pass = document.getElementById('admin-password').value;
+            if(pass === ADMIN_PASS) {
+                document.getElementById('admin-auth-panel').classList.add('hidden');
+                var dash = document.getElementById('admin-dashboard');
+                dash.classList.remove('hidden');
+                dash.classList.add('active');
+                updateAdminStats();
+                renderCharts();
+                calculateStorageUsage();
+            } else {
+                alert("パスワードが正しくありません。");
+            }
+        }
+
+        // 管理者統計データの集計更新
+        function updateAdminStats() {
+            var total = allFeedbacks.length;
+            var completed = allFeedbacks.filter(function(f){ return f.status === '完了'; }).length;
+            var pending = total - completed;
+            var persons = {};
+            allFeedbacks.forEach(function(f){ if(f.person) persons[f.person] = true; });
+
+            document.getElementById('stat-total').innerText = total;
+            document.getElementById('stat-completed').innerText = completed;
+            document.getElementById('stat-pending').innerText = pending;
+            document.getElementById('stat-persons').innerText = Object.keys(persons).length;
+        }
+
+        // Chart.js グラフレンダリング
+        function renderCharts() {
+            if(!document.getElementById('admin-dashboard').classList.contains('active')) return;
+
+            // 各種集計
+            var baseData = {}, personData = {}, trendData = {};
+            var statusData = { '完了': 0, '未完了': 0 };
+
+            allFeedbacks.forEach(function(f) {
+                baseData[f.base] = (baseData[f.base] || 0) + 1;
+                if(f.person) personData[f.person] = (personData[f.person] || 0) + 1;
+                statusData[f.status || '未完了']++;
+                trendData[f.date] = (trendData[f.date] || 0) + 1;
+            });
+
+            // グラフ破棄 (再描画バグ防止)
+            Object.keys(charts).forEach(function(k) { if(charts[k]) charts[k].destroy(); });
+
+            // 1. 対応者別グラフ
+            charts.person = new Chart(document.getElementById('chart-person'), {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(personData),
+                    datasets: [{ label: '件数', data: Object.values(personData), backgroundColor: '#ca8a04' }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            // 2. ステータス割合
+            charts.status = new Chart(document.getElementById('chart-status'), {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(statusData),
+                    datasets: [{ data: Object.values(statusData), backgroundColor: ['#10b981', '#f43f5e'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            // 3. 拠点別
+            charts.base = new Chart(document.getElementById('chart-base'), {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(baseData),
+                    datasets: [{ label: '件数', data: Object.values(baseData), backgroundColor: '#3b82f6' }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            // 4. トレンド (直近30日ソート)
+            var sortedDates = Object.keys(trendData).sort().slice(-30);
+            var sortedCounts = sortedDates.map(function(d) { return trendData[d]; });
+
+            charts.trend = new Chart(document.getElementById('chart-trend'), {
+                type: 'line',
+                data: {
+                    labels: sortedDates,
+                    datasets: [{ label: '投稿数', data: sortedCounts, borderColor: '#8b5cf6', tension: 0.2, fill: false }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        // ストレージ（画像）サイズの通信による正確な計算
+        function calculateStorageUsage() {
+            var totalBytes = 0;
+            var imageUrls = [];
+
+            allFeedbacks.forEach(function(f) {
+                if (f.imgs) {
+                    try { imageUrls = imageUrls.concat(JSON.parse(f.imgs)); } catch(e){}
+                }
+            });
+
+            // データベーステキスト概算
+            var dbSizeEst = (JSON.stringify(allFeedbacks).length * 2) / (1024 * 1024); // MB単位
+            document.getElementById('db-usage-text').innerText = dbSizeEst.toFixed(2) + " MB / 500 MB";
+            document.getElementById('db-usage-bar').style.width = Math.min((dbSizeEst / 500) * 100, 100) + "%";
+
+            if (imageUrls.length === 0) {
+                document.getElementById('storage-usage-text').innerText = "0 MB / 1.0 GB";
+                document.getElementById('storage-usage-bar').style.width = "0%";
+                return;
+            }
+
+            document.getElementById('storage-status-lbl').innerText = "📡 画像サイズ取得中 (" + imageUrls.length + "枚)...";
+
+            var sizePromises = imageUrls.map(function(url) {
+                return fetch(url, { method: 'HEAD' })
+                    .then(function(res) {
+                        if (res.ok) {
+                            var size = res.headers.get('Content-Length');
+                            if(size) totalBytes += parseInt(size, 10);
+                        }
+                    })
+                    .catch(function(e){ console.warn("HEAD request failed for url", url); });
+            });
+
+            Promise.all(sizePromises).then(function() {
+                var totalMB = totalBytes / (1024 * 1024);
+                document.getElementById('storage-usage-text').innerText = totalMB.toFixed(2) + " MB / 1024 MB";
+                document.getElementById('storage-usage-bar').style.width = Math.min((totalMB / 1024) * 100, 100) + "%";
+                document.getElementById('storage-status-lbl').innerText = "📷 添付画像: 計 " + imageUrls.length + " 枚 (上限: 1.0 GB)";
+            });
+        }
+
+        // 画像拡大表示モーダル
+        function openImageModal(src) {
+            document.getElementById('modal-img').src = src;
+            document.getElementById('image-modal').classList.remove('hidden');
+        }
+        function closeImageModal() {
+            document.getElementById('image-modal').classList.add('hidden');
+        }
+
+        // エスケープ関数
+        function esc(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+    </script>
 </body>
 </html>
