@@ -9,7 +9,7 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; color: #2d3748; min-height: 100vh; }
   header { background: #2b6cb0; color: white; padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
-  header h1 { font-size: 1.2rem; font-weight: 700; }
+  header h1 { font-size: 1.2rem; font-weight: 700; flex: 1; }
   .container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
   .tabs { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
   .tab { padding: 8px 20px; border-radius: 6px; border: none; cursor: pointer; font-size: 0.95rem; font-weight: 600; transition: all .2s; background: white; color: #4a5568; border: 1px solid #cbd5e0; }
@@ -74,13 +74,74 @@
   .pw-box h2 { font-size: 1.1rem; margin-bottom: 16px; color: #c05621; }
   .lock-icon { font-size: 3rem; margin-bottom: 12px; }
   @media(max-width:600px) { .form-grid { grid-template-columns: 1fr; } .filter-row { flex-direction: column; } .chart-grid { grid-template-columns: 1fr; } }
+
+  /* ===== マニュアルボタン ===== */
+  .manual-wrap { position: relative; }
+  .manual-btn {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,0.18); color: white;
+    border: 1.5px solid rgba(255,255,255,0.45);
+    border-radius: 8px; padding: 7px 14px;
+    font-size: 0.88rem; font-weight: 700; cursor: pointer;
+    transition: background .2s;
+    white-space: nowrap;
+  }
+  .manual-btn:hover { background: rgba(255,255,255,0.28); }
+  .manual-btn svg { flex-shrink: 0; }
+  .manual-dropdown {
+    display: none; position: absolute; top: calc(100% + 8px); right: 0;
+    background: white; border-radius: 10px; box-shadow: 0 4px 24px rgba(0,0,0,.18);
+    min-width: 240px; z-index: 500; overflow: hidden;
+  }
+  .manual-dropdown.open { display: block; }
+  .manual-dropdown-header {
+    background: #ebf4ff; padding: 10px 14px;
+    font-size: .8rem; font-weight: 700; color: #2b6cb0;
+    border-bottom: 1px solid #bee3f8;
+  }
+  .manual-dropdown-empty { padding: 18px 14px; color: #a0aec0; font-size: .88rem; text-align: center; }
+  .manual-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px; text-decoration: none; color: #2d3748;
+    font-size: .9rem; border-bottom: 1px solid #f0f4f8;
+    transition: background .15s;
+  }
+  .manual-item:last-child { border-bottom: none; }
+  .manual-item:hover { background: #f0f4f8; }
+  .manual-item-icon { font-size: 1rem; flex-shrink: 0; }
+  .manual-item-title { font-weight: 600; flex: 1; }
+
+  /* ===== 管理者：マニュアル管理 ===== */
+  .manual-admin-list { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .manual-admin-row {
+    display: flex; align-items: center; gap: 8px;
+    background: #f7fafc; border-radius: 8px; padding: 10px 12px;
+  }
+  .manual-admin-row .manual-title-col { font-weight: 700; font-size: .9rem; color: #2b6cb0; min-width: 120px; }
+  .manual-admin-row .manual-url-col { font-size: .82rem; color: #718096; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .add-manual-row { display: grid; grid-template-columns: 1fr 2fr auto; gap: 8px; margin-top: 4px; }
+  @media(max-width:600px) { .add-manual-row { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
 <header>
   <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
   <h1>フィードバック管理ツール</h1>
+
+  <!-- マニュアルボタン -->
+  <div class="manual-wrap">
+    <button class="manual-btn" onclick="toggleManualDropdown(event)" id="manual-toggle-btn">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+      📖 マニュアル
+      <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
+    </button>
+    <div class="manual-dropdown" id="manual-dropdown">
+      <div class="manual-dropdown-header">📚 マニュアル一覧</div>
+      <div id="manual-dropdown-body"><div class="manual-dropdown-empty">読み込み中...</div></div>
+    </div>
+  </div>
 </header>
+
 <div class="container">
   <!-- メインタブ -->
   <div class="tabs" id="main-tabs">
@@ -194,6 +255,21 @@
         <button class="btn btn-sm" style="background:#e2e8f0;color:#4a5568;" onclick="lockAdmin()">🔒 ロック</button>
       </div>
       <div class="stat-grid" id="stat-cards"></div>
+
+      <!-- ====== マニュアル管理 ====== -->
+      <div class="card" style="margin-bottom:20px; border-left: 4px solid #4299e1;">
+        <h2 style="color:#2b6cb0; border-bottom-color:#ebf4ff;">📖 マニュアル管理</h2>
+        <p style="font-size:.85rem;color:#718096;margin-bottom:14px;">ヘッダーの「マニュアル」ボタンに表示されるリンクを管理します。</p>
+        <div class="add-manual-row">
+          <input type="text" id="new-manual-title" placeholder="タイトル（例: 操作マニュアル）">
+          <input type="url" id="new-manual-url" placeholder="URL（例: https://example.com/manual.pdf）">
+          <button class="btn btn-success" onclick="addManual()">追加</button>
+        </div>
+        <div class="manual-admin-list" id="manual-admin-list">
+          <div class="loading"><div class="spinner"></div><br>読み込み中...</div>
+        </div>
+      </div>
+
       <div class="card" id="usage-card" style="margin-bottom:20px;">
         <h2 class="admin" style="color:#c05621;border-bottom-color:#feebc8;">☁️ Supabase 使用量</h2>
         <div id="usage-content"><div class="loading"><div class="spinner"></div><br>使用量を取得中...</div></div>
@@ -220,7 +296,7 @@ var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 var ADMIN_PW = 'agekke8206';
 var HEADERS = { 'Content-Type': 'application/json', 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY };
 
-var feedbacks = [], bases = [], editId = null, charts = {}, currentBase = '';
+var feedbacks = [], bases = [], manuals = [], editId = null, charts = {}, currentBase = '';
 window._pendingImgs = [];
 
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -251,9 +327,99 @@ function uploadImage(base64, filename) {
   });
 }
 
+// ===== マニュアル =====
+function loadManuals() {
+  return sbGet('manuals', 'order=id.asc').then(function(data) {
+    manuals = Array.isArray(data) ? data : [];
+    renderManualDropdown();
+  }).catch(function() {
+    // テーブルが存在しない場合など、エラーは無視してドロップダウンを空で表示
+    manuals = [];
+    renderManualDropdown();
+  });
+}
+
+function renderManualDropdown() {
+  var el = document.getElementById('manual-dropdown-body');
+  if(!manuals.length) {
+    el.innerHTML = '<div class="manual-dropdown-empty">マニュアルが登録されていません</div>';
+    return;
+  }
+  el.innerHTML = manuals.map(function(m) {
+    return '<a class="manual-item" href="'+esc(m.url)+'" target="_blank" rel="noopener">'
+      +'<span class="manual-item-icon">📄</span>'
+      +'<span class="manual-item-title">'+esc(m.title)+'</span>'
+      +'<svg width="13" height="13" fill="none" stroke="#a0aec0" stroke-width="2" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>'
+      +'</a>';
+  }).join('');
+}
+
+function renderManualAdminList() {
+  var el = document.getElementById('manual-admin-list');
+  if(!manuals.length) {
+    el.innerHTML = '<div style="color:#a0aec0;font-size:.85rem;padding:12px 0;">マニュアルが登録されていません</div>';
+    return;
+  }
+  el.innerHTML = manuals.map(function(m) {
+    return '<div class="manual-admin-row">'
+      +'<span class="manual-title-col">📄 '+esc(m.title)+'</span>'
+      +'<span class="manual-url-col"><a href="'+esc(m.url)+'" target="_blank" rel="noopener" style="color:#3182ce;text-decoration:none;">'+esc(m.url)+'</a></span>'
+      +'<button class="btn btn-danger btn-sm" onclick="deleteManual('+m.id+')">🗑️ 削除</button>'
+      +'</div>';
+  }).join('');
+}
+
+function addManual() {
+  var title = document.getElementById('new-manual-title').value.trim();
+  var url = document.getElementById('new-manual-url').value.trim();
+  if(!title) return alert('タイトルを入力してください');
+  if(!url) return alert('URLを入力してください');
+  if(!/^https?:\/\//.test(url)) return alert('URLは http:// または https:// から始めてください');
+  sbPost('manuals', { title: title, url: url }).then(function(data) {
+    if(Array.isArray(data) && data[0]) {
+      manuals.push(data[0]);
+    } else {
+      // fallback: 再ロード
+      return loadManuals().then(function(){ renderManualAdminList(); return; });
+    }
+    document.getElementById('new-manual-title').value = '';
+    document.getElementById('new-manual-url').value = '';
+    renderManualDropdown();
+    renderManualAdminList();
+    toast('📖 マニュアルを追加しました');
+  }).catch(function() {
+    alert('追加に失敗しました。Supabaseの manuals テーブルが存在するか確認してください。');
+  });
+}
+
+function deleteManual(id) {
+  if(!confirm('このマニュアルを削除しますか？')) return;
+  sbDelete('manuals', id).then(function() {
+    manuals = manuals.filter(function(m){ return m.id !== id; });
+    renderManualDropdown();
+    renderManualAdminList();
+    toast('🗑️ マニュアルを削除しました');
+  });
+}
+
+function toggleManualDropdown(e) {
+  e.stopPropagation();
+  var dd = document.getElementById('manual-dropdown');
+  dd.classList.toggle('open');
+}
+
+document.addEventListener('click', function() {
+  document.getElementById('manual-dropdown').classList.remove('open');
+});
+
+// ===== フィードバック =====
 function loadAll() {
   document.getElementById('feedback-list').innerHTML = '<div class="loading"><div class="spinner"></div><br>読み込み中...</div>';
-  return Promise.all([sbGet('feedbacks','order=date.desc'), sbGet('bases','order=id.asc')]).then(function(results) {
+  return Promise.all([
+    sbGet('feedbacks','order=date.desc'),
+    sbGet('bases','order=id.asc'),
+    loadManuals()
+  ]).then(function(results) {
     var fbData = results[0], baseData = results[1];
     feedbacks = (fbData||[]).map(function(f) { return Object.assign({}, f, { imgs: f.imgs ? JSON.parse(f.imgs) : [], status: f.status||'未完了' }); });
     bases = (baseData||[]).map(function(b) { return b.name; });
@@ -589,6 +755,7 @@ function checkPw() {
     document.getElementById('admin-content').style.display='';
     document.getElementById('pw-error').style.display='none';
     renderStats();
+    renderManualAdminList();
   } else {
     document.getElementById('pw-error').style.display='';
     document.getElementById('admin-pw').value='';
@@ -645,7 +812,6 @@ function renderUsage() {
   }
   function colorFor(pct) { return pct < 60 ? '#38a169' : pct < 85 ? '#d69e2e' : '#e53e3e'; }
 
-  // 全画像URLを収集
   var allImgs = [];
   feedbacks.forEach(function(f) { (f.imgs||[]).forEach(function(url){ if(url) allImgs.push(url); }); });
   var imgCount = allImgs.length;
@@ -671,7 +837,6 @@ function renderUsage() {
     +'</div>'
     +'</div>';
 
-  // 各画像にHEADリクエストを送り実際のバイト数を取得
   var totalBytes = 0;
   var done = 0;
   if(imgCount === 0) {
@@ -684,9 +849,7 @@ function renderUsage() {
     fetch(url, { method: 'HEAD' }).then(function(res) {
       var len = parseInt(res.headers.get('content-length')||'0', 10);
       totalBytes += len;
-    }).catch(function() {
-      // 取得失敗は0として扱う
-    }).then(function() {
+    }).catch(function() {}).then(function() {
       done++;
       if(done === imgCount) {
         var storageMB = Math.round(totalBytes / 1024 / 1024 * 100) / 100;
