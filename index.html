@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>フィードバック管理ツール</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; color: #2d3748; min-height: 100vh; }
@@ -500,6 +501,7 @@ function makeFbCard(f) {
     +'<div class="fb-actions">'
     +'<button class="btn btn-sm" style="background:#ecc94b;color:#744210;" onclick="editFeedback(\''+f.id+'\')">✏️ 編集</button>'
     +'<button class="btn btn-sm btn-danger" onclick="deleteFeedback(\''+f.id+'\')">🗑️ 削除</button>'
+    +'<button class="btn btn-sm" style="background:#667eea;color:white;" onclick="copyCardAsImage(this)">📋 画像コピー</button>'
     +'</div></div></div>';
 }
 
@@ -881,6 +883,65 @@ function showTab(t) {
   document.querySelectorAll('#base-tabs .tab').forEach(function(el){ el.classList.remove('active'); });
   if(t==='settings') renderBases();
   if(t==='input') refreshBaseSelects();
+}
+
+function copyCardAsImage(btn) {
+  var card = btn.closest('.fb-card');
+  if(!card) return;
+
+  // ボタン群を一時非表示にしてキャプチャ
+  var actions = card.querySelector('.fb-actions');
+  var prevDisplay = actions.style.display;
+  actions.style.display = 'none';
+
+  // カードを一時的に固定幅・白背景でラップ
+  var wrapper = document.createElement('div');
+  wrapper.style.cssText = 'position:fixed;left:-9999px;top:0;width:400px;background:white;border-radius:10px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.15);';
+  var clone = card.cloneNode(true);
+  // クローン内のボタンも非表示
+  var cloneActions = clone.querySelector('.fb-actions');
+  if(cloneActions) cloneActions.style.display = 'none';
+  wrapper.appendChild(clone);
+  document.body.appendChild(wrapper);
+
+  btn.textContent = '⏳ 処理中...';
+  btn.disabled = true;
+
+  html2canvas(wrapper, {
+    useCORS: true,
+    allowTaint: true,
+    scale: 2,
+    backgroundColor: '#ffffff'
+  }).then(function(canvas) {
+    return new Promise(function(resolve, reject) {
+      canvas.toBlob(function(blob) {
+        if(!blob) return reject(new Error('blob生成失敗'));
+        var item = new ClipboardItem({ 'image/png': blob });
+        navigator.clipboard.write([item]).then(resolve).catch(reject);
+      }, 'image/png');
+    });
+  }).then(function() {
+    toast('📋 カードを画像としてコピーしました！');
+  }).catch(function(e) {
+    // クリップボードAPIが使えない場合はダウンロードで代替
+    if(e && e.name === 'NotAllowedError') {
+      toast('⚠️ クリップボードへの書き込みが許可されていません。ダウンロードします。', 3500);
+      // ダウンロード代替
+      html2canvas(wrapper, { useCORS:true, allowTaint:true, scale:2, backgroundColor:'#ffffff' }).then(function(c2) {
+        var a = document.createElement('a');
+        a.download = 'feedback_card_'+Date.now()+'.png';
+        a.href = c2.toDataURL('image/png');
+        a.click();
+      });
+    } else {
+      toast('❌ コピーに失敗しました: '+(e&&e.message||e), 3500);
+    }
+  }).finally(function() {
+    document.body.removeChild(wrapper);
+    actions.style.display = prevDisplay;
+    btn.textContent = '📋 画像コピー';
+    btn.disabled = false;
+  });
 }
 
 document.getElementById('in-date').value=new Date().toISOString().split('T')[0];
