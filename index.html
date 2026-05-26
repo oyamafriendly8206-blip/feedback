@@ -122,6 +122,23 @@
   .manual-admin-row .manual-url-col { font-size: .82rem; color: #718096; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .add-manual-row { display: grid; grid-template-columns: 1fr 2fr auto; gap: 8px; margin-top: 4px; }
   @media(max-width:600px) { .add-manual-row { grid-template-columns: 1fr; } }
+
+  /* ===== チェックタブ ===== */
+  .tab.check-tab { color: #276749; border-color: #9ae6b4; }
+  .tab.check-tab.active { background: #276749; color: white; border-color: #276749; }
+  .check-table-wrap { overflow-x: auto; }
+  .check-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  .check-table th { background: #2b6cb0; color: white; padding: 10px 14px; text-align: center; font-weight: 700; white-space: nowrap; }
+  .check-table th:first-child { text-align: left; min-width: 100px; }
+  .check-table td { padding: 8px 12px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
+  .check-table tr:last-child td { border-bottom: none; }
+  .check-table tr.base-header td { background: #ebf4ff; font-weight: 800; color: #2b6cb0; font-size: .95rem; letter-spacing: .03em; }
+  .check-table tr:not(.base-header):hover td { background: #f7fafc; }
+  .check-cell { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .check-cb { width: 20px; height: 20px; cursor: pointer; accent-color: #38a169; }
+  .check-meta { font-size: .72rem; color: #718096; text-align: center; line-height: 1.3; }
+  .check-meta.done { color: #276749; font-weight: 600; }
+  .check-clear-btn { font-size: .7rem; color: #e53e3e; background: none; border: none; cursor: pointer; text-decoration: underline; margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -149,6 +166,7 @@
     <button class="tab active" onclick="showTab('list')">📋 一覧</button>
     <button class="tab" onclick="showTab('input')">➕ 入力</button>
     <button class="tab" onclick="showTab('settings')">⚙️ 拠点設定</button>
+    <button class="tab check-tab" onclick="showTab('check')">✅ チェック</button>
     <button class="tab admin-tab" onclick="showTab('admin')">🔐 管理者</button>
   </div>
   <!-- 拠点タブ -->
@@ -235,6 +253,46 @@
     </div>
     <div style="margin-bottom:12px;"><span id="base-result-count" class="count-badge"></span></div>
     <div id="base-feedback-list" class="feedback-grid"></div>
+  </div>
+
+  <!-- チェック -->
+  <div id="tab-check" style="display:none">
+    <div id="check-lock">
+      <div class="pw-box">
+        <div class="lock-icon">✅</div>
+        <h2 style="color:#276749;">チェック担当者エリア</h2>
+        <p style="color:#718096;font-size:.9rem;margin-bottom:16px;">パスワードを入力してください</p>
+        <input type="password" id="check-pw" placeholder="パスワード" style="margin-bottom:10px;" onkeydown="if(event.key==='Enter')checkCheckPw()">
+        <br>
+        <button class="btn btn-success" onclick="checkCheckPw()">ログイン</button>
+        <p id="check-pw-error" style="color:#e53e3e;font-size:.85rem;margin-top:8px;display:none;">パスワードが違います</p>
+      </div>
+    </div>
+    <div id="check-content" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+        <h2 style="font-size:1.1rem;font-weight:700;color:#276749;">✅ チェック担当者一覧</h2>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn btn-sm btn-success" onclick="exportCheckExcel()">📥 Excel出力</button>
+          <button class="btn btn-sm" style="background:#e2e8f0;color:#4a5568;" onclick="lockCheck()">🔒 ロック</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="check-table-wrap">
+          <table class="check-table" id="check-table">
+            <thead>
+              <tr>
+                <th>拠点 / 担当者</th>
+                <th>1次チェック</th>
+                <th>2次チェック</th>
+              </tr>
+            </thead>
+            <tbody id="check-tbody">
+              <tr><td colspan="3" class="empty">読み込み中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- 管理者 -->
@@ -878,11 +936,156 @@ function renderChart(id, type, labels, data, colors) {
 }
 
 function showTab(t) {
-  ['list','input','settings','admin','base'].forEach(function(id){ document.getElementById('tab-'+id).style.display=id===t?'':'none'; });
-  document.querySelectorAll('#main-tabs .tab').forEach(function(el,i){ el.classList.toggle('active',['list','input','settings','admin'][i]===t); });
+  ['list','input','settings','check','admin','base'].forEach(function(id){ document.getElementById('tab-'+id).style.display=id===t?'':'none'; });
+  document.querySelectorAll('#main-tabs .tab').forEach(function(el,i){ el.classList.toggle('active',['list','input','settings','check','admin'][i]===t); });
   document.querySelectorAll('#base-tabs .tab').forEach(function(el){ el.classList.remove('active'); });
   if(t==='settings') renderBases();
   if(t==='input') refreshBaseSelects();
+}
+
+var CHECK_PW = 'friendly8206';
+var checksData = {}; // key: "base::person::1" or "base::person::2"
+
+function checkCheckPw() {
+  var pw = document.getElementById('check-pw').value;
+  if(pw === CHECK_PW) {
+    document.getElementById('check-lock').style.display = 'none';
+    document.getElementById('check-content').style.display = '';
+    document.getElementById('check-pw-error').style.display = 'none';
+    loadChecks();
+  } else {
+    document.getElementById('check-pw-error').style.display = '';
+    document.getElementById('check-pw').value = '';
+  }
+}
+
+function lockCheck() {
+  document.getElementById('check-lock').style.display = '';
+  document.getElementById('check-content').style.display = 'none';
+  document.getElementById('check-pw').value = '';
+}
+
+function loadChecks() {
+  sbGet('checks', '').then(function(data) {
+    checksData = {};
+    (Array.isArray(data) ? data : []).forEach(function(row) {
+      var key = row.base + '::' + row.person + '::' + row.check_num;
+      checksData[key] = row;
+    });
+    renderCheckTable();
+  }).catch(function() {
+    renderCheckTable();
+  });
+}
+
+function renderCheckTable() {
+  // 拠点ごとに担当者をグループ化
+  var basePersonMap = {};
+  bases.forEach(function(b) { basePersonMap[b] = []; });
+  feedbacks.forEach(function(f) {
+    if(f.person && f.base && basePersonMap[f.base] !== undefined) {
+      if(basePersonMap[f.base].indexOf(f.person) === -1) basePersonMap[f.base].push(f.person);
+    }
+  });
+
+  var tbody = document.getElementById('check-tbody');
+  var rows = '';
+  var hasAny = false;
+
+  bases.forEach(function(base) {
+    var persons = basePersonMap[base] || [];
+    rows += '<tr class="base-header"><td colspan="3">🏢 ' + esc(base) + '</td></tr>';
+    if(!persons.length) {
+      rows += '<tr><td style="color:#a0aec0;padding-left:20px;">担当者未登録</td><td></td><td></td></tr>';
+    } else {
+      hasAny = true;
+      persons.sort();
+      persons.forEach(function(person) {
+        rows += '<tr>';
+        rows += '<td style="padding-left:20px;font-weight:600;">👤 ' + esc(person) + '</td>';
+        [1, 2].forEach(function(n) {
+          var key = base + '::' + person + '::' + n;
+          var rec = checksData[key];
+          var checked = rec ? true : false;
+          var metaHtml = '';
+          if(rec) {
+            metaHtml = '<span class="check-meta done">' + esc(rec.checked_by) + '<br>' + (rec.checked_at ? rec.checked_at.slice(0,10) : '') + '</span>'
+              + '<button class="check-clear-btn" onclick="clearCheck(\'' + esc(base) + '\',\'' + esc(person) + '\',' + n + ')">取消</button>';
+          }
+          rows += '<td><div class="check-cell">'
+            + '<input type="checkbox" class="check-cb" ' + (checked ? 'checked' : '') + ' onchange="onCheckChange(this,\'' + esc(base) + '\',\'' + esc(person) + '\',' + n + ')" ' + (checked ? 'disabled' : '') + '>'
+            + metaHtml
+            + '</div></td>';
+        });
+        rows += '</tr>';
+      });
+    }
+  });
+
+  if(!bases.length) {
+    rows = '<tr><td colspan="3" class="empty">拠点が登録されていません</td></tr>';
+  }
+
+  tbody.innerHTML = rows;
+}
+
+function onCheckChange(cb, base, person, checkNum) {
+  if(!cb.checked) return;
+  var checkerName = prompt('チェック者名を入力してください：');
+  if(!checkerName || !checkerName.trim()) { cb.checked = false; return; }
+  checkerName = checkerName.trim();
+  var now = new Date().toISOString();
+  var payload = { base: base, person: person, check_num: checkNum, checked_by: checkerName, checked_at: now };
+  sbPost('checks', payload).then(function(data) {
+    var row = Array.isArray(data) && data[0] ? data[0] : Object.assign({ id: Date.now() }, payload);
+    var key = base + '::' + person + '::' + checkNum;
+    checksData[key] = row;
+    renderCheckTable();
+    toast('✅ ' + (checkNum === 1 ? '1次' : '2次') + 'チェックを記録しました（' + checkerName + '）');
+  }).catch(function() {
+    cb.checked = false;
+    toast('❌ 保存に失敗しました。checks テーブルを確認してください。', 3500);
+  });
+}
+
+function clearCheck(base, person, checkNum) {
+  if(!confirm((checkNum === 1 ? '1次' : '2次') + 'チェックを取り消しますか？')) return;
+  var key = base + '::' + person + '::' + checkNum;
+  var rec = checksData[key];
+  if(!rec) return;
+  sbDelete('checks', rec.id).then(function() {
+    delete checksData[key];
+    renderCheckTable();
+    toast('🗑️ チェックを取り消しました');
+  });
+}
+
+function exportCheckExcel() {
+  var BOM = '\uFEFF';
+  var headers = ['拠点', '担当者', '1次チェック者', '1次チェック日時', '2次チェック者', '2次チェック日時'];
+  var rows = [];
+  bases.forEach(function(base) {
+    var persons = [];
+    feedbacks.forEach(function(f) {
+      if(f.base === base && f.person && persons.indexOf(f.person) === -1) persons.push(f.person);
+    });
+    persons.sort();
+    persons.forEach(function(person) {
+      var r1 = checksData[base + '::' + person + '::1'];
+      var r2 = checksData[base + '::' + person + '::2'];
+      rows.push([
+        base, person,
+        r1 ? r1.checked_by : '', r1 ? (r1.checked_at || '').slice(0, 16).replace('T', ' ') : '',
+        r2 ? r2.checked_by : '', r2 ? (r2.checked_at || '').slice(0, 16).replace('T', ' ') : ''
+      ].map(function(v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(','));
+    });
+  });
+  var csv = BOM + [headers.join(',')].concat(rows).join('\r\n');
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+  a.download = 'チェック表_' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click();
+  toast('📥 チェック表を出力しました');
 }
 
 function copyCardAsImage(btn) {
