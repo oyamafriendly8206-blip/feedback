@@ -232,6 +232,19 @@
       </div>
       <div class="base-list" id="base-list"></div>
     </div>
+
+    <div class="card" style="border-left:4px solid #38a169;">
+      <h2 style="color:#276749;border-bottom-color:#c6f6d5;">👤 担当者の管理（チェック表用）</h2>
+      <p style="font-size:.85rem;color:#718096;margin-bottom:14px;">チェック表に表示する拠点ごとの固定メンバーを登録します。フィードバックの「対応者」とは別物です。</p>
+      <div style="display:grid;grid-template-columns:1fr 2fr auto;gap:8px;margin-bottom:4px;">
+        <select id="new-member-base" style="min-width:0;">
+          <option value="">拠点を選択</option>
+        </select>
+        <input type="text" id="new-member-name" placeholder="担当者名（例: 田中 太郎）">
+        <button class="btn btn-success" onclick="addMember()">追加</button>
+      </div>
+      <div id="members-list" style="margin-top:16px;"></div>
+    </div>
   </div>
 
   <!-- 拠点別 -->
@@ -355,7 +368,7 @@ var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 var ADMIN_PW = 'agekke8206';
 var HEADERS = { 'Content-Type': 'application/json', 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY };
 
-var feedbacks = [], bases = [], manuals = [], editId = null, charts = {}, currentBase = '';
+var feedbacks = [], bases = [], manuals = [], members = [], editId = null, charts = {}, currentBase = '';
 window._pendingImgs = [];
 
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -477,7 +490,8 @@ function loadAll() {
   return Promise.all([
     sbGet('feedbacks','order=date.desc'),
     sbGet('bases','order=id.asc'),
-    loadManuals()
+    loadManuals(),
+    sbGet('members','order=id.asc').then(function(d){ members = Array.isArray(d) ? d : []; }).catch(function(){ members = []; })
   ]).then(function(results) {
     var fbData = results[0], baseData = results[1];
     feedbacks = (fbData||[]).map(function(f) { return Object.assign({}, f, { imgs: f.imgs ? JSON.parse(f.imgs) : [], status: f.status||'未完了' }); });
@@ -496,6 +510,8 @@ function refreshBaseSelects() {
   document.getElementById('in-base').innerHTML = opts;
   var fOpts = '<option value="">すべて</option>' + bases.map(function(b){ return '<option value="'+esc(b)+'">'+esc(b)+'</option>'; }).join('');
   document.getElementById('filter-base').innerHTML = fOpts;
+  var mOpts = '<option value="">拠点を選択</option>' + bases.map(function(b){ return '<option value="'+esc(b)+'">'+esc(b)+'</option>'; }).join('');
+  document.getElementById('new-member-base').innerHTML = mOpts;
 }
 
 function refreshPersonFilter() {
@@ -939,8 +955,63 @@ function showTab(t) {
   ['list','input','settings','check','admin','base'].forEach(function(id){ document.getElementById('tab-'+id).style.display=id===t?'':'none'; });
   document.querySelectorAll('#main-tabs .tab').forEach(function(el,i){ el.classList.toggle('active',['list','input','settings','check','admin'][i]===t); });
   document.querySelectorAll('#base-tabs .tab').forEach(function(el){ el.classList.remove('active'); });
-  if(t==='settings') renderBases();
+  if(t==='settings') { renderBases(); renderMembersList(); refreshBaseSelects(); }
   if(t==='input') refreshBaseSelects();
+}
+
+// ===== 担当者（members）=====
+function renderMembersList() {
+  var el = document.getElementById('members-list');
+  if(!bases.length) { el.innerHTML = '<p style="color:#a0aec0;font-size:.85rem;">先に拠点を登録してください</p>'; return; }
+
+  // 拠点ごとにグループ表示
+  var html = '';
+  bases.forEach(function(base) {
+    var bMembers = members.filter(function(m){ return m.base === base; });
+    html += '<div style="margin-bottom:16px;">';
+    html += '<div style="font-weight:700;font-size:.9rem;color:#2b6cb0;margin-bottom:8px;padding:6px 10px;background:#ebf4ff;border-radius:6px;">🏢 '+esc(base)+'</div>';
+    if(!bMembers.length) {
+      html += '<p style="color:#a0aec0;font-size:.83rem;padding-left:10px;">担当者が登録されていません</p>';
+    } else {
+      html += '<div style="display:flex;flex-wrap:wrap;gap:8px;padding-left:10px;">';
+      bMembers.forEach(function(m) {
+        html += '<div style="display:flex;align-items:center;gap:6px;background:#f0fff4;border:1px solid #9ae6b4;border-radius:20px;padding:4px 12px;">'
+          + '<span style="color:#276749;font-weight:600;font-size:.88rem;">👤 '+esc(m.name)+'</span>'
+          + '<button class="btn btn-danger" style="padding:2px 8px;font-size:.72rem;border-radius:20px;" onclick="removeMember('+m.id+')">削除</button>'
+          + '</div>';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+  });
+  el.innerHTML = html;
+}
+
+function addMember() {
+  var base = document.getElementById('new-member-base').value;
+  var name = document.getElementById('new-member-name').value.trim();
+  if(!base) return alert('拠点を選択してください');
+  if(!name) return alert('担当者名を入力してください');
+  var dup = members.find(function(m){ return m.base === base && m.name === name; });
+  if(dup) return alert('同じ拠点に同じ担当者がすでに登録されています');
+  sbPost('members', { base: base, name: name }).then(function(data) {
+    var row = Array.isArray(data) && data[0] ? data[0] : { id: Date.now(), base: base, name: name };
+    members.push(row);
+    document.getElementById('new-member-name').value = '';
+    renderMembersList();
+    toast('👤 担当者を追加しました');
+  }).catch(function() {
+    alert('追加に失敗しました。Supabaseの members テーブルが存在するか確認してください。');
+  });
+}
+
+function removeMember(id) {
+  if(!confirm('この担当者を削除しますか？')) return;
+  sbDelete('members', id).then(function() {
+    members = members.filter(function(m){ return m.id !== id; });
+    renderMembersList();
+    toast('🗑️ 担当者を削除しました');
+  });
 }
 
 var CHECK_PW = 'friendly8206';
@@ -979,41 +1050,35 @@ function loadChecks() {
 }
 
 function renderCheckTable() {
-  // 拠点ごとに担当者をグループ化
-  var basePersonMap = {};
-  bases.forEach(function(b) { basePersonMap[b] = []; });
-  feedbacks.forEach(function(f) {
-    if(f.person && f.base && basePersonMap[f.base] !== undefined) {
-      if(basePersonMap[f.base].indexOf(f.person) === -1) basePersonMap[f.base].push(f.person);
-    }
-  });
-
   var tbody = document.getElementById('check-tbody');
   var rows = '';
-  var hasAny = false;
+
+  if(!bases.length) {
+    tbody.innerHTML = '<tr><td colspan="3" class="empty">拠点が登録されていません</td></tr>';
+    return;
+  }
 
   bases.forEach(function(base) {
-    var persons = basePersonMap[base] || [];
+    var bMembers = members.filter(function(m){ return m.base === base; });
     rows += '<tr class="base-header"><td colspan="3">🏢 ' + esc(base) + '</td></tr>';
-    if(!persons.length) {
-      rows += '<tr><td style="color:#a0aec0;padding-left:20px;">担当者未登録</td><td></td><td></td></tr>';
+    if(!bMembers.length) {
+      rows += '<tr><td style="color:#a0aec0;padding-left:20px;" colspan="3">担当者未登録（拠点設定タブから登録できます）</td></tr>';
     } else {
-      hasAny = true;
-      persons.sort();
-      persons.forEach(function(person) {
+      bMembers.forEach(function(m) {
+        var person = m.name;
         rows += '<tr>';
         rows += '<td style="padding-left:20px;font-weight:600;">👤 ' + esc(person) + '</td>';
         [1, 2].forEach(function(n) {
           var key = base + '::' + person + '::' + n;
           var rec = checksData[key];
-          var checked = rec ? true : false;
+          var checked = !!rec;
           var metaHtml = '';
           if(rec) {
             metaHtml = '<span class="check-meta done">' + esc(rec.checked_by) + '<br>' + (rec.checked_at ? rec.checked_at.slice(0,10) : '') + '</span>'
-              + '<button class="check-clear-btn" onclick="clearCheck(\'' + esc(base) + '\',\'' + esc(person) + '\',' + n + ')">取消</button>';
+              + '<button class="check-clear-btn" onclick="clearCheck(\'' + base.replace(/'/g,"\\'") + '\',\'' + person.replace(/'/g,"\\'") + '\',' + n + ')">取消</button>';
           }
           rows += '<td><div class="check-cell">'
-            + '<input type="checkbox" class="check-cb" ' + (checked ? 'checked' : '') + ' onchange="onCheckChange(this,\'' + esc(base) + '\',\'' + esc(person) + '\',' + n + ')" ' + (checked ? 'disabled' : '') + '>'
+            + '<input type="checkbox" class="check-cb" ' + (checked ? 'checked' : '') + ' onchange="onCheckChange(this,\'' + base.replace(/'/g,"\\'") + '\',\'' + person.replace(/'/g,"\\'") + '\',' + n + ')" ' + (checked ? 'disabled' : '') + '>'
             + metaHtml
             + '</div></td>';
         });
@@ -1021,10 +1086,6 @@ function renderCheckTable() {
       });
     }
   });
-
-  if(!bases.length) {
-    rows = '<tr><td colspan="3" class="empty">拠点が登録されていません</td></tr>';
-  }
 
   tbody.innerHTML = rows;
 }
