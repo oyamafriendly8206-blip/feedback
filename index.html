@@ -1028,6 +1028,7 @@ function removeMember(id) {
 
 var CHECK_PW = 'friendly8206';
 var checksData = {}; // key: "date::base::person::checkNum"
+var pendingSelections = {}; // key: "date::base::person::checkNum" → 選択中のchecker名（未保存）
 
 function checkCheckPw() {
   var pw = document.getElementById('check-pw').value;
@@ -1068,22 +1069,26 @@ function getCheckDate() {
 function loadChecks() {
   var date = getCheckDate();
   sbGet('checks', 'check_date=eq.' + date).then(function(data) {
-    checksData = {};
+    // その日付のキーだけ一旦削除してからマージ（他の日付データは保持）
+    Object.keys(checksData).forEach(function(k) {
+      if(k.startsWith(date + '::')) delete checksData[k];
+    });
     (Array.isArray(data) ? data : []).forEach(function(row) {
       var key = row.check_date + '::' + row.base + '::' + row.person + '::' + row.check_num;
       checksData[key] = row;
     });
     renderCheckTable();
   }).catch(function() {
-    checksData = {};
     renderCheckTable();
   });
 }
 
 function buildCheckerSelect(base, person, checkNum, currentVal) {
-  // その拠点の担当者＋全担当者を選択肢に
+  var date = getCheckDate();
+  var pendingKey = date + '::' + base + '::' + person + '::' + checkNum;
+  var selected = pendingSelections[pendingKey] || currentVal;
   var opts = members.map(function(m) {
-    var sel = (m.name === currentVal) ? ' selected' : '';
+    var sel = (m.name === selected) ? ' selected' : '';
     return '<option value="' + esc(m.name) + '"' + sel + '>' + esc(m.name) + '</option>';
   });
   var safeBase = base.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
@@ -1146,7 +1151,13 @@ function renderCheckTable() {
 }
 
 function onCheckerSelectChange(sel, base, person, checkNum) {
-  // 選択が変わっても自動保存しない（ボタンで保存）
+  var date = getCheckDate();
+  var key = date + '::' + base + '::' + person + '::' + checkNum;
+  if(sel.value) {
+    pendingSelections[key] = sel.value;
+  } else {
+    delete pendingSelections[key];
+  }
 }
 
 function doCheck(base, person, checkNum, btn) {
@@ -1165,6 +1176,7 @@ function doCheck(base, person, checkNum, btn) {
     var row = Array.isArray(data) && data[0] ? data[0] : Object.assign({ id: Date.now() }, payload);
     var key = date + '::' + base + '::' + person + '::' + checkNum;
     checksData[key] = row;
+    delete pendingSelections[key];
     renderCheckTable();
     toast('✅ ' + (checkNum === 1 ? '1次' : '2次') + 'チェックを記録しました（' + checkerName + '）');
   }).catch(function() {
