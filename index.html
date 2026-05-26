@@ -284,11 +284,23 @@
     <div id="check-content" style="display:none">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
         <h2 style="font-size:1.1rem;font-weight:700;color:#276749;">✅ チェック担当者一覧</h2>
-        <div style="display:flex;gap:8px;align-items:center;">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <button class="btn btn-sm btn-success" onclick="exportCheckExcel()">📥 Excel出力</button>
           <button class="btn btn-sm" style="background:#e2e8f0;color:#4a5568;" onclick="lockCheck()">🔒 ロック</button>
         </div>
       </div>
+
+      <!-- 日付選択 -->
+      <div class="card" style="margin-bottom:16px;padding:14px 20px;">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <label style="font-weight:700;font-size:.9rem;color:#2d3748;white-space:nowrap;">📅 対象日：</label>
+          <input type="date" id="check-date" style="width:auto;font-size:1rem;font-weight:600;color:#2b6cb0;border-color:#bee3f8;" onchange="loadChecks()">
+          <button class="btn btn-sm btn-primary" onclick="setCheckDateToday()">今日</button>
+          <button class="btn btn-sm" style="background:#e2e8f0;color:#4a5568;" onclick="changeCheckDate(-1)">◀ 前日</button>
+          <button class="btn btn-sm" style="background:#e2e8f0;color:#4a5568;" onclick="changeCheckDate(1)">翌日 ▶</button>
+        </div>
+      </div>
+
       <div class="card">
         <div class="check-table-wrap">
           <table class="check-table" id="check-table">
@@ -1015,7 +1027,7 @@ function removeMember(id) {
 }
 
 var CHECK_PW = 'friendly8206';
-var checksData = {}; // key: "base::person::1" or "base::person::2"
+var checksData = {}; // key: "date::base::person::checkNum"
 
 function checkCheckPw() {
   var pw = document.getElementById('check-pw').value;
@@ -1023,6 +1035,7 @@ function checkCheckPw() {
     document.getElementById('check-lock').style.display = 'none';
     document.getElementById('check-content').style.display = '';
     document.getElementById('check-pw-error').style.display = 'none';
+    setCheckDateToday();
     loadChecks();
   } else {
     document.getElementById('check-pw-error').style.display = '';
@@ -1036,20 +1049,53 @@ function lockCheck() {
   document.getElementById('check-pw').value = '';
 }
 
+function setCheckDateToday() {
+  document.getElementById('check-date').value = new Date().toISOString().slice(0, 10);
+}
+
+function changeCheckDate(delta) {
+  var el = document.getElementById('check-date');
+  var d = el.value ? new Date(el.value) : new Date();
+  d.setDate(d.getDate() + delta);
+  el.value = d.toISOString().slice(0, 10);
+  loadChecks();
+}
+
+function getCheckDate() {
+  return document.getElementById('check-date').value || new Date().toISOString().slice(0, 10);
+}
+
 function loadChecks() {
-  sbGet('checks', '').then(function(data) {
+  var date = getCheckDate();
+  sbGet('checks', 'check_date=eq.' + date).then(function(data) {
     checksData = {};
     (Array.isArray(data) ? data : []).forEach(function(row) {
-      var key = row.base + '::' + row.person + '::' + row.check_num;
+      var key = row.check_date + '::' + row.base + '::' + row.person + '::' + row.check_num;
       checksData[key] = row;
     });
     renderCheckTable();
   }).catch(function() {
+    checksData = {};
     renderCheckTable();
   });
 }
 
+function buildCheckerSelect(base, person, checkNum, currentVal) {
+  // その拠点の担当者＋全担当者を選択肢に
+  var opts = members.map(function(m) {
+    var sel = (m.name === currentVal) ? ' selected' : '';
+    return '<option value="' + esc(m.name) + '"' + sel + '>' + esc(m.name) + '</option>';
+  });
+  var safeBase = base.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  var safePerson = person.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  return '<select class="checker-select" style="font-size:.8rem;padding:4px 6px;border-radius:6px;border:1px solid #9ae6b4;color:#276749;min-width:90px;" onchange="onCheckerSelectChange(this,\'' + safeBase + '\',\'' + safePerson + '\',' + checkNum + ')">'
+    + '<option value="">-- 選択 --</option>'
+    + opts.join('')
+    + '</select>';
+}
+
 function renderCheckTable() {
+  var date = getCheckDate();
   var tbody = document.getElementById('check-tbody');
   var rows = '';
 
@@ -1069,18 +1115,27 @@ function renderCheckTable() {
         rows += '<tr>';
         rows += '<td style="padding-left:20px;font-weight:600;">👤 ' + esc(person) + '</td>';
         [1, 2].forEach(function(n) {
-          var key = base + '::' + person + '::' + n;
+          var key = date + '::' + base + '::' + person + '::' + n;
           var rec = checksData[key];
           var checked = !!rec;
-          var metaHtml = '';
-          if(rec) {
-            metaHtml = '<span class="check-meta done">' + esc(rec.checked_by) + '<br>' + (rec.checked_at ? rec.checked_at.slice(0,10) : '') + '</span>'
-              + '<button class="check-clear-btn" onclick="clearCheck(\'' + base.replace(/'/g,"\\'") + '\',\'' + person.replace(/'/g,"\\'") + '\',' + n + ')">取消</button>';
+          var checkerName = rec ? rec.checked_by : '';
+          var checkedTime = rec ? (rec.checked_at ? rec.checked_at.slice(0,16).replace('T',' ') : '') : '';
+          var safeBase = base.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+          var safePerson = person.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+
+          rows += '<td><div class="check-cell">';
+          if(checked) {
+            // チェック済み：担当者名・時刻・取消ボタン表示
+            rows += '<span style="font-size:1.2rem;">✅</span>'
+              + '<span class="check-meta done">' + esc(checkerName) + '<br><span style="color:#a0aec0;font-weight:400;">' + checkedTime + '</span></span>'
+              + '<button class="check-clear-btn" onclick="clearCheck(\'' + safeBase + '\',\'' + safePerson + '\',' + n + ')">取消</button>';
+          } else {
+            // 未チェック：担当者セレクト＋チェックボタン
+            rows += buildCheckerSelect(base, person, n, '')
+              + '<button class="btn btn-sm" style="background:#c6f6d5;color:#276749;margin-top:4px;font-size:.78rem;" '
+              + 'onclick="doCheck(\'' + safeBase + '\',\'' + safePerson + '\',' + n + ',this)">✔ チェック</button>';
           }
-          rows += '<td><div class="check-cell">'
-            + '<input type="checkbox" class="check-cb" ' + (checked ? 'checked' : '') + ' onchange="onCheckChange(this,\'' + base.replace(/'/g,"\\'") + '\',\'' + person.replace(/'/g,"\\'") + '\',' + n + ')" ' + (checked ? 'disabled' : '') + '>'
-            + metaHtml
-            + '</div></td>';
+          rows += '</div></td>';
         });
         rows += '</tr>';
       });
@@ -1090,28 +1145,39 @@ function renderCheckTable() {
   tbody.innerHTML = rows;
 }
 
-function onCheckChange(cb, base, person, checkNum) {
-  if(!cb.checked) return;
-  var checkerName = prompt('チェック者名を入力してください：');
-  if(!checkerName || !checkerName.trim()) { cb.checked = false; return; }
-  checkerName = checkerName.trim();
+function onCheckerSelectChange(sel, base, person, checkNum) {
+  // 選択が変わっても自動保存しない（ボタンで保存）
+}
+
+function doCheck(base, person, checkNum, btn) {
+  var date = getCheckDate();
+  // ボタンの親セルからselectを探す
+  var cell = btn.closest('.check-cell');
+  var sel = cell ? cell.querySelector('.checker-select') : null;
+  var checkerName = sel ? sel.value : '';
+  if(!checkerName) { toast('⚠️ チェック者を選択してください', 2000); return; }
+
+  btn.disabled = true;
+  btn.textContent = '保存中...';
   var now = new Date().toISOString();
-  var payload = { base: base, person: person, check_num: checkNum, checked_by: checkerName, checked_at: now };
+  var payload = { check_date: date, base: base, person: person, check_num: checkNum, checked_by: checkerName, checked_at: now };
   sbPost('checks', payload).then(function(data) {
     var row = Array.isArray(data) && data[0] ? data[0] : Object.assign({ id: Date.now() }, payload);
-    var key = base + '::' + person + '::' + checkNum;
+    var key = date + '::' + base + '::' + person + '::' + checkNum;
     checksData[key] = row;
     renderCheckTable();
     toast('✅ ' + (checkNum === 1 ? '1次' : '2次') + 'チェックを記録しました（' + checkerName + '）');
   }).catch(function() {
-    cb.checked = false;
-    toast('❌ 保存に失敗しました。checks テーブルを確認してください。', 3500);
+    btn.disabled = false;
+    btn.textContent = '✔ チェック';
+    toast('❌ 保存に失敗しました。checks テーブルに check_date 列があるか確認してください。', 4000);
   });
 }
 
 function clearCheck(base, person, checkNum) {
+  var date = getCheckDate();
   if(!confirm((checkNum === 1 ? '1次' : '2次') + 'チェックを取り消しますか？')) return;
-  var key = base + '::' + person + '::' + checkNum;
+  var key = date + '::' + base + '::' + person + '::' + checkNum;
   var rec = checksData[key];
   if(!rec) return;
   sbDelete('checks', rec.id).then(function() {
@@ -1122,20 +1188,18 @@ function clearCheck(base, person, checkNum) {
 }
 
 function exportCheckExcel() {
+  var date = getCheckDate();
   var BOM = '\uFEFF';
-  var headers = ['拠点', '担当者', '1次チェック者', '1次チェック日時', '2次チェック者', '2次チェック日時'];
+  var headers = ['日付', '拠点', '担当者', '1次チェック者', '1次チェック日時', '2次チェック者', '2次チェック日時'];
   var rows = [];
   bases.forEach(function(base) {
-    var persons = [];
-    feedbacks.forEach(function(f) {
-      if(f.base === base && f.person && persons.indexOf(f.person) === -1) persons.push(f.person);
-    });
-    persons.sort();
-    persons.forEach(function(person) {
-      var r1 = checksData[base + '::' + person + '::1'];
-      var r2 = checksData[base + '::' + person + '::2'];
+    var bMembers = members.filter(function(m){ return m.base === base; });
+    bMembers.forEach(function(m) {
+      var person = m.name;
+      var r1 = checksData[date + '::' + base + '::' + person + '::1'];
+      var r2 = checksData[date + '::' + base + '::' + person + '::2'];
       rows.push([
-        base, person,
+        date, base, person,
         r1 ? r1.checked_by : '', r1 ? (r1.checked_at || '').slice(0, 16).replace('T', ' ') : '',
         r2 ? r2.checked_by : '', r2 ? (r2.checked_at || '').slice(0, 16).replace('T', ' ') : ''
       ].map(function(v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(','));
@@ -1144,9 +1208,9 @@ function exportCheckExcel() {
   var csv = BOM + [headers.join(',')].concat(rows).join('\r\n');
   var a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
-  a.download = 'チェック表_' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.download = 'チェック表_' + date + '.csv';
   a.click();
-  toast('📥 チェック表を出力しました');
+  toast('📥 チェック表を出力しました（' + date + '）');
 }
 
 function copyCardAsImage(btn) {
