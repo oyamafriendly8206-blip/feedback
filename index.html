@@ -245,6 +245,16 @@
       </div>
       <div id="members-list" style="margin-top:16px;"></div>
     </div>
+
+    <div class="card" style="border-left:4px solid #805ad5;">
+      <h2 style="color:#553c9a;border-bottom-color:#e9d8fd;">🔍 チェック者の管理（1次・2次チェックを行う人）</h2>
+      <p style="font-size:.85rem;color:#718096;margin-bottom:14px;">チェック表でチェックを実施する人を登録します。担当者（チェックされる側）とは別物です。</p>
+      <div style="display:flex;gap:8px;margin-bottom:4px;">
+        <input type="text" id="new-checker-name" placeholder="チェック者名（例: 山田 花子）" style="flex:1;">
+        <button class="btn" style="background:#805ad5;color:white;" onclick="addChecker()">追加</button>
+      </div>
+      <div id="checkers-list" style="margin-top:16px;display:flex;flex-wrap:wrap;gap:8px;"></div>
+    </div>
   </div>
 
   <!-- 拠点別 -->
@@ -380,7 +390,7 @@ var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 var ADMIN_PW = 'agekke8206';
 var HEADERS = { 'Content-Type': 'application/json', 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY };
 
-var feedbacks = [], bases = [], manuals = [], members = [], editId = null, charts = {}, currentBase = '';
+var feedbacks = [], bases = [], manuals = [], members = [], checkers = [], editId = null, charts = {}, currentBase = '';
 window._pendingImgs = [];
 
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -503,7 +513,8 @@ function loadAll() {
     sbGet('feedbacks','order=date.desc'),
     sbGet('bases','order=id.asc'),
     loadManuals(),
-    sbGet('members','order=id.asc').then(function(d){ members = Array.isArray(d) ? d : []; }).catch(function(){ members = []; })
+    sbGet('members','order=id.asc').then(function(d){ members = Array.isArray(d) ? d : []; }).catch(function(){ members = []; }),
+    sbGet('checkers','order=id.asc').then(function(d){ checkers = Array.isArray(d) ? d : []; }).catch(function(){ checkers = []; })
   ]).then(function(results) {
     var fbData = results[0], baseData = results[1];
     feedbacks = (fbData||[]).map(function(f) { return Object.assign({}, f, { imgs: f.imgs ? JSON.parse(f.imgs) : [], status: f.status||'未完了' }); });
@@ -967,7 +978,7 @@ function showTab(t) {
   ['list','input','settings','check','admin','base'].forEach(function(id){ document.getElementById('tab-'+id).style.display=id===t?'':'none'; });
   document.querySelectorAll('#main-tabs .tab').forEach(function(el,i){ el.classList.toggle('active',['list','input','settings','check','admin'][i]===t); });
   document.querySelectorAll('#base-tabs .tab').forEach(function(el){ el.classList.remove('active'); });
-  if(t==='settings') { renderBases(); renderMembersList(); refreshBaseSelects(); }
+  if(t==='settings') { renderBases(); renderMembersList(); renderCheckersList(); refreshBaseSelects(); }
   if(t==='input') refreshBaseSelects();
 }
 
@@ -1023,6 +1034,45 @@ function removeMember(id) {
     members = members.filter(function(m){ return m.id !== id; });
     renderMembersList();
     toast('🗑️ 担当者を削除しました');
+  });
+}
+
+// ===== チェック者（checkers）=====
+function renderCheckersList() {
+  var el = document.getElementById('checkers-list');
+  if(!checkers.length) {
+    el.innerHTML = '<span style="color:#a0aec0;font-size:.85rem;">チェック者が登録されていません</span>';
+    return;
+  }
+  el.innerHTML = checkers.map(function(c) {
+    return '<div style="display:flex;align-items:center;gap:6px;background:#faf5ff;border:1px solid #d6bcfa;border-radius:20px;padding:4px 12px;">'
+      + '<span style="color:#553c9a;font-weight:600;font-size:.88rem;">🔍 ' + esc(c.name) + '</span>'
+      + '<button class="btn btn-danger" style="padding:2px 8px;font-size:.72rem;border-radius:20px;" onclick="removeChecker(' + c.id + ')">削除</button>'
+      + '</div>';
+  }).join('');
+}
+
+function addChecker() {
+  var name = document.getElementById('new-checker-name').value.trim();
+  if(!name) return alert('チェック者名を入力してください');
+  if(checkers.find(function(c){ return c.name === name; })) return alert('同じ名前のチェック者がすでに登録されています');
+  sbPost('checkers', { name: name }).then(function(data) {
+    var row = Array.isArray(data) && data[0] ? data[0] : { id: Date.now(), name: name };
+    checkers.push(row);
+    document.getElementById('new-checker-name').value = '';
+    renderCheckersList();
+    toast('🔍 チェック者を追加しました');
+  }).catch(function() {
+    alert('追加に失敗しました。Supabaseの checkers テーブルが存在するか確認してください。');
+  });
+}
+
+function removeChecker(id) {
+  if(!confirm('このチェック者を削除しますか？')) return;
+  sbDelete('checkers', id).then(function() {
+    checkers = checkers.filter(function(c){ return c.id !== id; });
+    renderCheckersList();
+    toast('🗑️ チェック者を削除しました');
   });
 }
 
@@ -1087,9 +1137,9 @@ function buildCheckerSelect(base, person, checkNum, currentVal) {
   var date = getCheckDate();
   var pendingKey = date + '::' + base + '::' + person + '::' + checkNum;
   var selected = pendingSelections[pendingKey] || currentVal;
-  var opts = members.map(function(m) {
-    var sel = (m.name === selected) ? ' selected' : '';
-    return '<option value="' + esc(m.name) + '"' + sel + '>' + esc(m.name) + '</option>';
+  var opts = checkers.map(function(c) {
+    var sel = (c.name === selected) ? ' selected' : '';
+    return '<option value="' + esc(c.name) + '"' + sel + '>' + esc(c.name) + '</option>';
   });
   var safeBase = base.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   var safePerson = person.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
