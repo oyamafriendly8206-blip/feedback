@@ -546,10 +546,10 @@ function refreshPersonSelect() {
   var opts = '<option value="">選択してください</option>'
     + bMembers.map(function(m){ return '<option value="'+esc(m.name)+'">'+esc(m.name)+'</option>'; }).join('');
   el.innerHTML = opts;
-  // 編集時など既存値を復元
   if(cur) el.value = cur;
 }
 
+function refreshPersonFilter() {
   var persons = [];
   feedbacks.forEach(function(f) { if(f.person && persons.indexOf(f.person)===-1) persons.push(f.person); });
   persons.sort();
