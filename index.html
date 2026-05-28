@@ -398,7 +398,13 @@ function toast(msg, d) { d = d||2500; var el=document.getElementById('toast'); e
 
 function sbGet(table, params) {
   params = params||'';
-  return fetch(SB_URL+'/rest/v1/'+table+'?'+params, { headers: Object.assign({}, HEADERS, {'Prefer':'return=representation'}) }).then(function(r){ return r.json(); });
+  return fetch(SB_URL+'/rest/v1/'+table+'?'+params, {
+    headers: Object.assign({}, HEADERS, {
+      'Prefer': 'return=representation',
+      'Range-Unit': 'items',
+      'Range': '0-9999'
+    })
+  }).then(function(r){ return r.json(); });
 }
 function sbPost(table, body) {
   return fetch(SB_URL+'/rest/v1/'+table, { method:'POST', headers: Object.assign({}, HEADERS, {'Prefer':'return=representation'}), body: JSON.stringify(body) }).then(function(r){ return r.json(); });
