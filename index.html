@@ -519,17 +519,29 @@ function loadAll() {
     sbGet('feedbacks','order=date.desc'),
     sbGet('bases','order=id.asc'),
     loadManuals(),
-    sbGet('members','order=id.asc').then(function(d){ members = Array.isArray(d) ? d : []; }).catch(function(){ members = []; }),
-    sbGet('checkers','order=id.asc').then(function(d){ checkers = Array.isArray(d) ? d : []; }).catch(function(){ checkers = []; })
+    sbGet('members','order=id.asc'),
+    sbGet('checkers','order=id.asc')
   ]).then(function(results) {
     var fbData = results[0], baseData = results[1];
-    feedbacks = (fbData||[]).map(function(f) { return Object.assign({}, f, { imgs: f.imgs ? JSON.parse(f.imgs) : [], status: f.status||'未完了' }); });
+    // results[2] = manuals (loadManualsで処理済み)
+    var memberData = results[3], checkerData = results[4];
+
+    feedbacks = (fbData||[]).map(function(f) {
+      return Object.assign({}, f, { imgs: f.imgs ? JSON.parse(f.imgs) : [], status: f.status||'未完了' });
+    });
     bases = (baseData||[]).map(function(b) { return b.name; });
+    members = Array.isArray(memberData) ? memberData : [];
+    checkers = Array.isArray(checkerData) ? checkerData : [];
+
+    console.log('loadAll完了 - checkers:', checkers.length, '件', checkers.map(function(c){ return c.name; }));
+
     refreshBaseSelects();
     refreshPersonFilter();
+    refreshPersonSelect();
     refreshBaseTabs();
     renderList();
-  }).catch(function() {
+  }).catch(function(e) {
+    console.error('loadAll error:', e);
     document.getElementById('feedback-list').innerHTML = '<div class="empty">⚠️ データの読み込みに失敗しました。</div>';
   });
 }
