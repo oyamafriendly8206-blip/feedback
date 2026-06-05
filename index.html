@@ -139,6 +139,22 @@
   .check-meta { font-size: .72rem; color: #718096; text-align: center; line-height: 1.3; }
   .check-meta.done { color: #276749; font-weight: 600; }
   .check-clear-btn { font-size: .7rem; color: #e53e3e; background: none; border: none; cursor: pointer; text-decoration: underline; margin-top: 2px; }
+
+  /* ===== Q&Aタブ ===== */
+  .faq-item { border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
+  .faq-question { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; cursor: pointer; background: white; transition: background .15s; gap: 12px; }
+  .faq-question:hover { background: #f7fafc; }
+  .faq-question.open { background: #ebf4ff; }
+  .faq-q-text { font-weight: 700; font-size: .95rem; color: #2d3748; flex: 1; }
+  .faq-q-icon { font-size: 1.1rem; color: #2b6cb0; flex-shrink: 0; transition: transform .2s; }
+  .faq-question.open .faq-q-icon { transform: rotate(180deg); }
+  .faq-answer { display: none; padding: 14px 18px; background: #f8fbff; border-top: 1px solid #bee3f8; font-size: .92rem; color: #4a5568; line-height: 1.7; white-space: pre-wrap; }
+  .faq-answer.open { display: block; }
+  .faq-category-label { display: inline-block; background: #2b6cb0; color: white; border-radius: 4px; font-size: .72rem; padding: 2px 8px; margin-right: 8px; flex-shrink: 0; }
+  .faq-search-row { display: flex; gap: 8px; margin-bottom: 16px; }
+  .faq-empty { text-align: center; color: #a0aec0; padding: 40px; font-size: .95rem; }
+  .faq-admin-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; margin-bottom: 8px; }
+  @media(max-width:600px) { .faq-admin-row { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -165,6 +181,7 @@
   <div class="tabs" id="main-tabs">
     <button class="tab active" onclick="showTab('list')">📋 一覧</button>
     <button class="tab" onclick="showTab('input')">➕ 入力</button>
+    <button class="tab" onclick="showTab('faq')">❓ Q&A</button>
     <button class="tab" onclick="showTab('settings')">⚙️ 拠点設定</button>
     <button class="tab check-tab" onclick="showTab('check')">✅ チェック</button>
     <button class="tab admin-tab" onclick="showTab('admin')">🔐 管理者</button>
@@ -219,6 +236,20 @@
         <button class="btn btn-primary" id="save-btn" onclick="saveFeedback()">💾 保存</button>
         <button class="btn" style="background:#e2e8f0;color:#4a5568;" onclick="resetForm()">リセット</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Q&A -->
+  <div id="tab-faq" style="display:none">
+    <div class="card">
+      <h2>❓ よくある質問 / Q&A</h2>
+      <div class="faq-search-row">
+        <input type="text" id="faq-search" placeholder="🔍 質問を検索..." oninput="renderFaqList()" style="flex:1;">
+        <select id="faq-cat-filter" onchange="renderFaqList()" style="width:auto;">
+          <option value="">すべてのカテゴリ</option>
+        </select>
+      </div>
+      <div id="faq-list"><div class="faq-empty">読み込み中...</div></div>
     </div>
   </div>
 
@@ -364,6 +395,22 @@
         </div>
       </div>
 
+      <!-- FAQ管理 -->
+      <div class="card" style="margin-bottom:20px;border-left:4px solid #d69e2e;">
+        <h2 style="color:#744210;border-bottom-color:#feebc8;">❓ Q&A管理</h2>
+        <p style="font-size:.85rem;color:#718096;margin-bottom:14px;">Q&Aタブに表示される質問と回答を登録します。</p>
+        <div class="faq-admin-row">
+          <input type="text" id="new-faq-category" placeholder="カテゴリ（例: 操作方法）">
+          <input type="text" id="new-faq-question" placeholder="質問 *">
+          <span></span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:16px;">
+          <textarea id="new-faq-answer" placeholder="回答 *" style="min-height:70px;"></textarea>
+          <button class="btn btn-success" style="align-self:stretch;" onclick="addFaq()">追加</button>
+        </div>
+        <div id="faq-admin-list"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+
       <div class="card" id="usage-card" style="margin-bottom:20px;">
         <h2 class="admin" style="color:#c05621;border-bottom-color:#feebc8;">☁️ Supabase 使用量</h2>
         <div id="usage-content"><div class="loading"><div class="spinner"></div><br>使用量を取得中...</div></div>
@@ -390,7 +437,7 @@ var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 var ADMIN_PW = 'agekke8206';
 var HEADERS = { 'Content-Type': 'application/json', 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY };
 
-var feedbacks = [], bases = [], manuals = [], members = [], checkers = [], editId = null, charts = {}, currentBase = '';
+var feedbacks = [], bases = [], manuals = [], members = [], checkers = [], faqs = [], editId = null, charts = {}, currentBase = '';
 window._pendingImgs = [];
 
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -520,11 +567,12 @@ function loadAll() {
     sbGet('bases','order=id.asc'),
     loadManuals(),
     sbGet('members','order=id.asc'),
-    sbGet('checkers','order=id.asc')
+    sbGet('checkers','order=id.asc'),
+    sbGet('faqs','order=id.asc')
   ]).then(function(results) {
     var fbData = results[0], baseData = results[1];
     // results[2] = manuals (loadManualsで処理済み)
-    var memberData = results[3], checkerData = results[4];
+    var memberData = results[3], checkerData = results[4], faqData = results[5];
 
     feedbacks = (fbData||[]).map(function(f) {
       return Object.assign({}, f, { imgs: f.imgs ? JSON.parse(f.imgs) : [], status: f.status||'未完了' });
@@ -532,6 +580,7 @@ function loadAll() {
     bases = (baseData||[]).map(function(b) { return b.name; });
     members = Array.isArray(memberData) ? memberData : [];
     checkers = Array.isArray(checkerData) ? checkerData : [];
+    faqs = Array.isArray(faqData) ? faqData : [];
 
     console.log('loadAll完了 - checkers:', checkers.length, '件', checkers.map(function(c){ return c.name; }));
 
@@ -888,6 +937,7 @@ function checkPw() {
     document.getElementById('pw-error').style.display='none';
     renderStats();
     renderManualAdminList();
+    renderFaqAdminList();
   } else {
     document.getElementById('pw-error').style.display='';
     document.getElementById('admin-pw').value='';
@@ -1008,14 +1058,101 @@ function renderChart(id, type, labels, data, colors) {
 }
 
 function showTab(t) {
-  ['list','input','settings','check','admin','base'].forEach(function(id){ document.getElementById('tab-'+id).style.display=id===t?'':'none'; });
-  document.querySelectorAll('#main-tabs .tab').forEach(function(el,i){ el.classList.toggle('active',['list','input','settings','check','admin'][i]===t); });
+  ['list','input','faq','settings','check','admin','base'].forEach(function(id){ document.getElementById('tab-'+id).style.display=id===t?'':'none'; });
+  document.querySelectorAll('#main-tabs .tab').forEach(function(el,i){ el.classList.toggle('active',['list','input','faq','settings','check','admin'][i]===t); });
   document.querySelectorAll('#base-tabs .tab').forEach(function(el){ el.classList.remove('active'); });
   if(t==='settings') { renderBases(); renderMembersList(); renderCheckersList(); refreshBaseSelects(); }
   if(t==='input') refreshBaseSelects();
+  if(t==='faq') renderFaqList();
 }
 
-// ===== 担当者（members）=====
+// ===== FAQ =====
+function renderFaqList() {
+  var kw = (document.getElementById('faq-search').value || '').toLowerCase();
+  var cat = document.getElementById('faq-cat-filter').value;
+
+  // カテゴリフィルター選択肢を更新
+  var cats = [];
+  faqs.forEach(function(f){ if(f.category && cats.indexOf(f.category) === -1) cats.push(f.category); });
+  var catEl = document.getElementById('faq-cat-filter');
+  var curCat = catEl.value;
+  catEl.innerHTML = '<option value="">すべてのカテゴリ</option>'
+    + cats.map(function(c){ return '<option value="'+esc(c)+'"'+(c===curCat?' selected':'')+'>'+esc(c)+'</option>'; }).join('');
+
+  var list = faqs.filter(function(f){
+    if(cat && (f.category||'') !== cat) return false;
+    if(kw && !(f.question.toLowerCase().includes(kw) || (f.answer||'').toLowerCase().includes(kw))) return false;
+    return true;
+  });
+
+  var el = document.getElementById('faq-list');
+  if(!list.length) { el.innerHTML = '<div class="faq-empty">📭 該当するQ&Aがありません</div>'; return; }
+
+  el.innerHTML = list.map(function(f, i) {
+    return '<div class="faq-item">'
+      + '<div class="faq-question" onclick="toggleFaq(this)" id="faq-q-'+f.id+'">'
+      + (f.category ? '<span class="faq-category-label">'+esc(f.category)+'</span>' : '')
+      + '<span class="faq-q-text">Q. '+esc(f.question)+'</span>'
+      + '<span class="faq-q-icon">▼</span>'
+      + '</div>'
+      + '<div class="faq-answer" id="faq-a-'+f.id+'">'+esc(f.answer||'')+'</div>'
+      + '</div>';
+  }).join('');
+}
+
+function toggleFaq(el) {
+  el.classList.toggle('open');
+  var answerId = el.id.replace('faq-q-', 'faq-a-');
+  var ans = document.getElementById(answerId);
+  if(ans) ans.classList.toggle('open');
+}
+
+function renderFaqAdminList() {
+  var el = document.getElementById('faq-admin-list');
+  if(!faqs.length) { el.innerHTML = '<p style="color:#a0aec0;font-size:.85rem;">Q&Aが登録されていません</p>'; return; }
+  el.innerHTML = '<div style="display:flex;flex-direction:column;gap:8px;">'
+    + faqs.map(function(f) {
+      return '<div style="background:#fffbeb;border:1px solid #f6e05e;border-radius:8px;padding:10px 14px;display:flex;gap:10px;align-items:flex-start;">'
+        + '<div style="flex:1;">'
+        + (f.category ? '<span style="display:inline-block;background:#d69e2e;color:white;border-radius:4px;font-size:.72rem;padding:1px 7px;margin-bottom:4px;">'+esc(f.category)+'</span><br>' : '')
+        + '<div style="font-weight:700;font-size:.88rem;color:#2d3748;margin-bottom:4px;">Q. '+esc(f.question)+'</div>'
+        + '<div style="font-size:.83rem;color:#718096;white-space:pre-wrap;">A. '+esc(f.answer||'')+'</div>'
+        + '</div>'
+        + '<button class="btn btn-danger btn-sm" onclick="deleteFaq('+f.id+')" style="flex-shrink:0;">🗑️</button>'
+        + '</div>';
+    }).join('')
+    + '</div>';
+}
+
+function addFaq() {
+  var category = document.getElementById('new-faq-category').value.trim();
+  var question = document.getElementById('new-faq-question').value.trim();
+  var answer = document.getElementById('new-faq-answer').value.trim();
+  if(!question) return alert('質問を入力してください');
+  if(!answer) return alert('回答を入力してください');
+  sbPost('faqs', { category: category, question: question, answer: answer }).then(function(data) {
+    var row = Array.isArray(data) && data[0] ? data[0] : { id: Date.now(), category: category, question: question, answer: answer };
+    faqs.push(row);
+    document.getElementById('new-faq-category').value = '';
+    document.getElementById('new-faq-question').value = '';
+    document.getElementById('new-faq-answer').value = '';
+    renderFaqAdminList();
+    toast('❓ Q&Aを追加しました');
+  }).catch(function() {
+    alert('追加に失敗しました。Supabaseの faqs テーブルが存在するか確認してください。');
+  });
+}
+
+function deleteFaq(id) {
+  if(!confirm('このQ&Aを削除しますか？')) return;
+  sbDelete('faqs', id).then(function() {
+    faqs = faqs.filter(function(f){ return f.id !== id; });
+    renderFaqAdminList();
+    toast('🗑️ Q&Aを削除しました');
+  });
+}
+
+
 function renderMembersList() {
   var el = document.getElementById('members-list');
   if(!bases.length) { el.innerHTML = '<p style="color:#a0aec0;font-size:.85rem;">先に拠点を登録してください</p>'; return; }
