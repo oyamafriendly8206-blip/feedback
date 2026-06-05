@@ -404,9 +404,14 @@
           <input type="text" id="new-faq-question" placeholder="質問 *">
           <span></span>
         </div>
-        <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:16px;">
+        <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:8px;">
           <textarea id="new-faq-answer" placeholder="回答 *" style="min-height:70px;"></textarea>
           <button class="btn btn-success" style="align-self:stretch;" onclick="addFaq()">追加</button>
+        </div>
+        <div style="margin-bottom:16px;">
+          <label style="font-size:.82rem;font-weight:600;color:#4a5568;">画像（複数選択可）</label>
+          <input type="file" id="faq-img-input" accept="image/*" multiple style="margin-top:4px;" onchange="previewFaqImgs(this)">
+          <div id="faq-img-preview" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;"></div>
         </div>
         <div id="faq-admin-list"><div class="loading"><div class="spinner"></div></div></div>
       </div>
@@ -1067,11 +1072,39 @@ function showTab(t) {
 }
 
 // ===== FAQ =====
+window._faqPendingImgs = [];
+
+function previewFaqImgs(input) {
+  var files = Array.from(input.files);
+  if(!files.length) return;
+  var preview = document.getElementById('faq-img-preview');
+  files.forEach(function(file) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      window._faqPendingImgs.push(e.target.result);
+      var idx = window._faqPendingImgs.length - 1;
+      var div = document.createElement('div');
+      div.style.cssText = 'position:relative;display:inline-block;';
+      div.innerHTML = '<img src="'+e.target.result+'" style="height:80px;border-radius:6px;object-fit:cover;">'
+        + '<button onclick="removeFaqPreviewImg('+idx+',this.parentNode)" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:white;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:1;">✕</button>';
+      preview.appendChild(div);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function removeFaqPreviewImg(idx, el) {
+  window._faqPendingImgs.splice(idx, 1);
+  el.remove();
+  document.querySelectorAll('#faq-img-preview button').forEach(function(btn, i) {
+    btn.setAttribute('onclick', 'removeFaqPreviewImg('+i+',this.parentNode)');
+  });
+}
+
 function renderFaqList() {
   var kw = (document.getElementById('faq-search').value || '').toLowerCase();
   var cat = document.getElementById('faq-cat-filter').value;
 
-  // カテゴリフィルター選択肢を更新
   var cats = [];
   faqs.forEach(function(f){ if(f.category && cats.indexOf(f.category) === -1) cats.push(f.category); });
   var catEl = document.getElementById('faq-cat-filter');
@@ -1088,14 +1121,18 @@ function renderFaqList() {
   var el = document.getElementById('faq-list');
   if(!list.length) { el.innerHTML = '<div class="faq-empty">📭 該当するQ&Aがありません</div>'; return; }
 
-  el.innerHTML = list.map(function(f, i) {
+  el.innerHTML = list.map(function(f) {
+    var imgs = f.imgs ? JSON.parse(f.imgs) : [];
+    var imgHtml = imgs.length ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;">'
+      + imgs.map(function(url, i){ return '<img src="'+esc(url)+'" style="height:120px;border-radius:6px;object-fit:cover;cursor:pointer;" onclick="openFaqModal(\''+f.id+'\','+i+')">'; }).join('')
+      + '</div>' : '';
     return '<div class="faq-item">'
       + '<div class="faq-question" onclick="toggleFaq(this)" id="faq-q-'+f.id+'">'
       + (f.category ? '<span class="faq-category-label">'+esc(f.category)+'</span>' : '')
       + '<span class="faq-q-text">Q. '+esc(f.question)+'</span>'
       + '<span class="faq-q-icon">▼</span>'
       + '</div>'
-      + '<div class="faq-answer" id="faq-a-'+f.id+'">'+esc(f.answer||'')+'</div>'
+      + '<div class="faq-answer" id="faq-a-'+f.id+'">'+esc(f.answer||'')+imgHtml+'</div>'
       + '</div>';
   }).join('');
 }
@@ -1107,16 +1144,30 @@ function toggleFaq(el) {
   if(ans) ans.classList.toggle('open');
 }
 
+function openFaqModal(id, imgIdx) {
+  var f = faqs.find(function(f){ return String(f.id) === String(id); });
+  if(!f) return;
+  var imgs = f.imgs ? JSON.parse(f.imgs) : [];
+  if(!imgs.length) return;
+  document.getElementById('modal-img').src = imgs[imgIdx||0];
+  document.getElementById('img-modal').classList.add('open');
+}
+
 function renderFaqAdminList() {
   var el = document.getElementById('faq-admin-list');
   if(!faqs.length) { el.innerHTML = '<p style="color:#a0aec0;font-size:.85rem;">Q&Aが登録されていません</p>'; return; }
   el.innerHTML = '<div style="display:flex;flex-direction:column;gap:8px;">'
     + faqs.map(function(f) {
+      var imgs = f.imgs ? JSON.parse(f.imgs) : [];
+      var imgHtml = imgs.length ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">'
+        + imgs.map(function(url){ return '<img src="'+esc(url)+'" style="height:60px;border-radius:4px;object-fit:cover;">'; }).join('')
+        + '</div>' : '';
       return '<div style="background:#fffbeb;border:1px solid #f6e05e;border-radius:8px;padding:10px 14px;display:flex;gap:10px;align-items:flex-start;">'
         + '<div style="flex:1;">'
         + (f.category ? '<span style="display:inline-block;background:#d69e2e;color:white;border-radius:4px;font-size:.72rem;padding:1px 7px;margin-bottom:4px;">'+esc(f.category)+'</span><br>' : '')
         + '<div style="font-weight:700;font-size:.88rem;color:#2d3748;margin-bottom:4px;">Q. '+esc(f.question)+'</div>'
         + '<div style="font-size:.83rem;color:#718096;white-space:pre-wrap;">A. '+esc(f.answer||'')+'</div>'
+        + imgHtml
         + '</div>'
         + '<button class="btn btn-danger btn-sm" onclick="deleteFaq('+f.id+')" style="flex-shrink:0;">🗑️</button>'
         + '</div>';
@@ -1130,16 +1181,39 @@ function addFaq() {
   var answer = document.getElementById('new-faq-answer').value.trim();
   if(!question) return alert('質問を入力してください');
   if(!answer) return alert('回答を入力してください');
-  sbPost('faqs', { category: category, question: question, answer: answer }).then(function(data) {
-    var row = Array.isArray(data) && data[0] ? data[0] : { id: Date.now(), category: category, question: question, answer: answer };
+
+  var addBtn = document.querySelector('[onclick="addFaq()"]');
+  addBtn.disabled = true;
+  var imgs = window._faqPendingImgs.slice();
+  var imgUrls = [];
+
+  function uploadNext(i) {
+    if(i >= imgs.length) return Promise.resolve();
+    addBtn.textContent = '画像アップロード中... ('+(i+1)+'/'+imgs.length+')';
+    return uploadImage(imgs[i], 'faq_img'+i+'.jpg').then(function(url){
+      imgUrls.push(url); return uploadNext(i+1);
+    });
+  }
+
+  uploadNext(0).then(function() {
+    addBtn.textContent = '保存中...';
+    return sbPost('faqs', { category: category, question: question, answer: answer, imgs: JSON.stringify(imgUrls) });
+  }).then(function(data) {
+    var row = Array.isArray(data) && data[0] ? data[0] : { id: Date.now(), category: category, question: question, answer: answer, imgs: JSON.stringify(imgUrls) };
     faqs.push(row);
     document.getElementById('new-faq-category').value = '';
     document.getElementById('new-faq-question').value = '';
     document.getElementById('new-faq-answer').value = '';
+    document.getElementById('faq-img-input').value = '';
+    document.getElementById('faq-img-preview').innerHTML = '';
+    window._faqPendingImgs = [];
     renderFaqAdminList();
     toast('❓ Q&Aを追加しました');
   }).catch(function() {
     alert('追加に失敗しました。Supabaseの faqs テーブルが存在するか確認してください。');
+  }).then(function() {
+    addBtn.textContent = '追加';
+    addBtn.disabled = false;
   });
 }
 
